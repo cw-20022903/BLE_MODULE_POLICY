@@ -1,0 +1,3634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coway BLE 표준 Module 정책 정리 — CW_BLE_MODULE</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+  <style>
+    /* ── CSS Variables (Light / Dark) ── */
+    :root {
+      --bg:         #f5f7fa;
+      --surface:    #ffffff;
+      --sidebar-bg: #1e2533;
+      --sidebar-fg: #c9d1e0;
+      --sidebar-active: #4f8ef7;
+      --text:       #1a2035;
+      --text-muted: #64748b;
+      --border:     #e2e8f0;
+      --accent:     #4f8ef7;
+      --accent2:    #7c3aed;
+      --code-bg:    #1e2533;
+      --tag-urgent: #ef4444;
+      --tag-review: #f59e0b;
+      --tag-pending:#3b82f6;
+      --tag-done:   #10b981;
+      --arrow:      #94a3b8;
+      --flow-box:   #e8f0fe;
+      --flow-border:#4f8ef7;
+      --shadow:     0 1px 4px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg:         #0f1117;
+      --surface:    #1a1f2e;
+      --text:       #e2e8f0;
+      --text-muted: #94a3b8;
+      --border:     #2d3748;
+      --flow-box:   #1e2d4a;
+      --flow-border:#4f8ef7;
+      --shadow:     0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 260px;
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-fg);
+      position: sticky;
+      top: 0;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 32px;
+      overflow-y: auto;
+      height: 100vh;
+    }
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sidebar-header .proj { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #7a8ba0; }
+    .sidebar-header h2 { font-size: 15px; color: #fff; margin-top: 4px; line-height: 1.4; }
+    .sidebar-meta { font-size: 11px; color: #7a8ba0; margin-top: 6px; }
+    nav ul { list-style: none; padding: 12px 0; }
+    nav ul li a {
+      display: block;
+      padding: 8px 20px;
+      color: var(--sidebar-fg);
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    nav ul li a:hover { color: #fff; background: rgba(255,255,255,0.05); border-left-color: var(--sidebar-active); }
+    nav ul li a.active { color: #fff; border-left-color: var(--sidebar-active); background: rgba(79,142,247,0.12); }
+    nav .nav-section { padding: 16px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #4a5568; }
+
+    /* ── Main Content ── */
+    #content {
+      flex: 1;
+      min-width: 0;
+      padding: 40px 48px;
+      max-width: 1100px;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar h1 { font-size: 22px; font-weight: 700; }
+    .topbar .meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    #theme-toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Sections ── */
+    section { margin-bottom: 56px; }
+    section h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    section h2 .sec-num {
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    section h3 { font-size: 15px; font-weight: 600; margin: 24px 0 12px; color: var(--accent2); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Architecture Diagram ── */
+    .arch-diagram {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .arch-col {
+      flex: 1;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .arch-col.highlight { background: rgba(79,142,247,0.06); }
+    .arch-col-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .arch-box {
+      background: var(--flow-box);
+      border: 1.5px solid var(--flow-border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      width: 100%;
+    }
+    .arch-box.device { border-color: #10b981; background: rgba(16,185,129,0.08); }
+    .arch-box.module { border-color: #4f8ef7; background: rgba(79,142,247,0.10); }
+    .arch-box.host   { border-color: #f59e0b; background: rgba(245,158,11,0.08); }
+    .arch-box small  { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+    .arch-divider {
+      width: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+    .arch-arrow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .arch-arrow-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .arrow-h {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .arrow-h span { font-size: 16px; }
+
+    /* ── Flow Diagram ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+    }
+    .flow-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      width: 100%;
+    }
+    .flow-line-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 32px;
+      flex-shrink: 0;
+    }
+    .flow-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--surface);
+      box-shadow: 0 0 0 2px var(--accent);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .flow-dot.green  { background: #10b981; box-shadow: 0 0 0 2px #10b981; }
+    .flow-dot.orange { background: #f59e0b; box-shadow: 0 0 0 2px #f59e0b; }
+    .flow-dot.red    { background: #ef4444; box-shadow: 0 0 0 2px #ef4444; }
+    .flow-dot.purple { background: #7c3aed; box-shadow: 0 0 0 2px #7c3aed; }
+    .flow-vert {
+      flex: 1;
+      width: 2px;
+      background: var(--border);
+      min-height: 24px;
+    }
+    .flow-body {
+      flex: 1;
+      padding-bottom: 24px;
+    }
+    .flow-title {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .flow-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .flow-ref {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .ref-tag {
+      font-size: 11px;
+      background: rgba(79,142,247,0.1);
+      border: 1px solid rgba(79,142,247,0.3);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+    .ref-tag.green {
+      background: rgba(16,185,129,0.1);
+      border-color: rgba(16,185,129,0.3);
+      color: #10b981;
+    }
+    .ref-tag.orange {
+      background: rgba(245,158,11,0.1);
+      border-color: rgba(245,158,11,0.3);
+      color: #f59e0b;
+    }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: 13px;
+    }
+    thead tr { background: rgba(79,142,247,0.08); }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(79,142,247,0.03); }
+    code.inline {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: rgba(79,142,247,0.08);
+      border: 1px solid rgba(79,142,247,0.2);
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: var(--accent);
+    }
+    .line-ref {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* ── Priority Badges ── */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+    .badge-urgent  { background: rgba(239,68,68,0.12);  color: var(--tag-urgent);  border: 1px solid rgba(239,68,68,0.3); }
+    .badge-review  { background: rgba(245,158,11,0.12); color: var(--tag-review);  border: 1px solid rgba(245,158,11,0.3); }
+    .badge-pending { background: rgba(59,130,246,0.12); color: var(--tag-pending); border: 1px solid rgba(59,130,246,0.3); }
+    .badge-done    { background: rgba(16,185,129,0.12); color: var(--tag-done);    border: 1px solid rgba(16,185,129,0.3); }
+
+    /* ── Relay Diagram ── */
+    .relay-diagram {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr 40px 1fr;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .relay-node {
+      border-radius: 10px;
+      padding: 16px 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .relay-node.device { background: rgba(16,185,129,0.08); border: 1.5px solid #10b981; }
+    .relay-node.module { background: rgba(79,142,247,0.08); border: 1.5px solid #4f8ef7; }
+    .relay-node.host   { background: rgba(245,158,11,0.08); border: 1.5px solid #f59e0b; }
+    .relay-node small  { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
+    .relay-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+    .relay-arrow small { font-size: 9px; text-align: center; line-height: 1.3; }
+
+    /* ── File Tree ── */
+    .file-tree {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      color: #c9d1e0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      line-height: 1.9;
+    }
+    .file-tree .dir  { color: #7dd3fc; }
+    .file-tree .file { color: #c9d1e0; }
+    .file-tree .comment { color: #5a7085; }
+
+    /* ── Code blocks ── */
+    pre[class*="language-"] {
+      border-radius: 10px !important;
+      font-size: 12.5px !important;
+      margin: 0 !important;
+    }
+
+    /* ── Info callout ── */
+    .callout {
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      border-left: 3px solid;
+    }
+    .callout-info   { background: rgba(79,142,247,0.08);  border-color: var(--accent);     color: var(--text); }
+    .callout-warn   { background: rgba(245,158,11,0.08);  border-color: #f59e0b;           color: var(--text); }
+    .callout-danger { background: rgba(239,68,68,0.08);   border-color: var(--tag-urgent); color: var(--text); }
+
+    /* ── Role Badge ── */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+    .role-multi      { background: rgba(124,58,237,0.12); color: #7c3aed; border: 1px solid rgba(124,58,237,0.35); }
+    .role-central    { background: rgba(79,142,247,0.12); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.35); }
+    .role-peripheral { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.35); }
+
+    /* ── Product Card Grid ── */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 800px) { .product-grid { grid-template-columns: 1fr; } }
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .product-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .product-card-body { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+    .product-card-body strong { color: var(--text); }
+
+    /* ── Storage Flow ── */
+    .storage-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .storage-node {
+      background: var(--flow-box);
+      border: 1.5px solid var(--flow-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 110px;
+    }
+    .storage-arrow {
+      font-size: 18px;
+      color: var(--text-muted);
+      padding: 0 8px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a4a5c; border-radius: 3px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+      #content { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════ SIDEBAR ════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="proj">COWAY BLE DEV</div>
+    <h2>Coway BLE 표준 모듈 정책</h2>
+    <h2>CW_BLE_MODULE</h2>
+    <div class="sidebar-meta">CW_BLE_MODULE · nRF54L15<br>최초작성: 2026-02-15 · 갱신: 2026-03-23 </div>
+  </div>
+  <ul>
+    <li><div class="nav-section">BLE 분석</div></li>
+    <li><a href="#sec-arch">1. 전체 아키텍처</a></li>
+    <li><a href="#sec-flow">2. Central 상태 전이</a></li>
+    <li><a href="#sec-flow-periph">2.5 Peripheral 상태 전이</a></li>
+    <li><a href="#sec-params">3. 핵심 파라미터</a></li>
+    <li><a href="#sec-relay">4. 데이터 릴레이 흐름</a></li>
+    <li><a href="#sec-issues">5. 미결 정책 이슈</a></li>
+    <li><div class="nav-section">Multi-Role 정책</div></li>
+    <li><a href="#sec-multirole">6. 제품별 역할 정책</a></li>
+    <li><a href="#sec-storage">7. 설정 저장 설계</a></li>
+    <li><div class="nav-section">다중 연결·추상화</div></li>
+    <li><a href="#sec-multiconn">8. 다중 연결 슬롯 아키텍처</a></li>
+    <li><a href="#sec-datasvc">9. 데이터 서비스 추상화</a></li>
+    <li><a href="#sec-mdata">10. 데이터 라우팅 정책</a></li>
+    <li><div class="nav-section">외부 스토리지</div></li>
+    <li><a href="#sec-spiflash">14. SPI Flash + LittleFS</a></li>
+    <li><a href="#sec-serialmem-policy">15. 시리얼메모리 파일시스템 정책</a></li>
+    <li><div class="nav-section">리소스 분석</div></li>
+    <li><a href="#sec-threads">16. 스레드 및 동기화</a></li>
+    <li><a href="#sec-ram">13. RAM 사용량 분석</a></li>
+    <li><div class="nav-section">참조</div></li>
+    <li><a href="#sec-files">11. 파일 구조 참조</a></li>
+    <li><a href="#sec-api">12. Public API 요약</a></li>
+  </ul>
+</nav>
+
+<!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
+<main id="content">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div>
+      <h1>BLE Multi-Role 정책 분석</h1>
+      <div class="meta">CW_BLE_MODULE &nbsp;|&nbsp; nRF54L15 &nbsp;|&nbsp; nRF Connect SDK / Zephyr &nbsp;|&nbsp; 갱신: 2026-03-23</div>
+    </div>
+    <button id="theme-toggle" onclick="toggleTheme()">🌙 다크 모드</button>
+  </div>
+
+  <!-- ─────────────────────────── §1 아키텍처 ─────────────────────────── -->
+  <section id="sec-arch">
+    <h2><span class="sec-num">1</span> 전체 아키텍처 — 사내 표준 BLE 모듈</h2>
+
+    <p style="margin-bottom:12px;color:var(--text-muted);font-size:14px;">
+      CW_BLE_MODULE은 코웨이 제품(비데, 리모컨, 스마트매트리스, 안마의자 등)에 범용으로 탑재되는 <strong>사내 표준 BLE 통신 모듈</strong>로 개발 될 예정이다.
+      제품 개발자는 BLE Stack이나 BLE Service/Profile을 직접 다루지 않으며, <strong>HOST MCU ↔ BLE 모듈 간 UART AT 커맨드</strong>만으로 BLE 기능을 사용한다.
+    </p>
+    <p style="margin-bottom:20px;color:var(--text-muted);font-size:14px;">
+      BLE 역할은 <strong>Central + Peripheral 동시 수행(Multi-Role)</strong>이 기본이며,
+      AT+ROLE 커맨드로 Peripheral 전용 또는 Central 전용으로 전환 가능하다.
+      펌웨어는 제품 무관 단일 바이너리(<strong>ONE-firmware</strong>)로 관리되며,
+      AT+PRODUCTCODE로 전달받은 제품 코드에 따라 런타임에 동작(저장 용량 배분, 데이터 정책 등)이 분기된다.
+    </p>
+
+    <!-- ── 시스템 구성도 ── -->
+    <h3>1-1. 시스템 구성도</h3>
+    <div class="arch-diagram">
+      <!-- HOST MCU -->
+      <div class="arch-col">
+        <div class="arch-col-title">HOST MCU (제품 메인보드)</div>
+        <div class="arch-box device">비데 MCU / 리모컨 MCU / …<small>UART (AT 커맨드 송수신)</small></div>
+        <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;">AT+SCAN, AT+SEND, AT+DSTORE …<br>+DATAnn, +CONNnn, +DISCnn 수신</div>
+      </div>
+
+      <div class="arch-divider"></div>
+
+      <!-- 모듈 내부 -->
+      <div class="arch-col highlight">
+        <div class="arch-col-title">CW_BLE_MODULE (nRF54L15)</div>
+        <div class="arch-box module" style="border-color:#f59e0b;background:rgba(245,158,11,0.08);">at_cmd.c · uart_ctrl.c<small>AT 커맨드 파싱 / UART 드라이버</small></div>
+        <div class="arch-arrow-row"><div class="arrow-h"><span>↕</span></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <div class="arch-box module" style="flex:1;">ble_central.c<small>Scan · Connect</small></div>
+          <div class="arch-box module" style="flex:1;">ble_peripheral.c<small>Advertise · Accept</small></div>
+        </div>
+        <div class="arch-arrow-row"><div class="arrow-h"><span>↕</span></div></div>
+        <div class="arch-box module" style="border-color:#7c3aed;background:rgba(124,58,237,0.08);">conn_slot.c · nus_relay.c<small>통합 슬롯 풀 01~08 · 양방향 데이터 브릿지</small></div>
+        <div class="arch-arrow-row"><div class="arrow-h"><span>↕</span></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <div class="arch-box module" style="flex:1;border-color:#10b981;background:rgba(16,185,129,0.08);">storage_mgr.c<small>ZMS (내부 RRAM)<br>설정 영속 저장</small></div>
+          <div class="arch-box module" style="flex:1;border-color:#10b981;background:rgba(16,185,129,0.08);">data_mgr.c · chunk_mgr.c<small>SPI Flash + LittleFS<br>오프라인 데이터 축적/전송</small></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;">
+          ble_manager.c: 연결 생명주기 공통 관리 · board_ctrl.c: GPIO/LED 제어<br>
+          main.c: 초기화 시퀀스 + 이벤트 핸들러 등록
+        </div>
+      </div>
+
+      <div class="arch-divider"></div>
+
+      <!-- 외부 BLE 장치 -->
+      <div class="arch-col">
+        <div class="arch-col-title">외부 BLE 장치</div>
+        <div class="arch-box host">스마트폰 / 앱<small>Peripheral 역할로 연결 수락</small></div>
+        <div style="height:16px;"></div>
+        <div class="arch-box device">다른 BLE 디바이스<small>Central 역할로 스캔 → 연결</small></div>
+      </div>
+    </div>
+
+    <!-- ── 소프트웨어 계층 구조 ── -->
+    <h3>1-2. 소프트웨어 계층 구조</h3>
+    <div class="card">
+      <table class="tbl">
+        <thead>
+          <tr><th style="width:140px;">계층</th><th style="width:200px;">모듈</th><th>역할</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="2"><strong>인터페이스</strong><br><span style="font-size:11px;color:var(--text-muted);">HOST MCU 접점</span></td>
+            <td><code class="inline">uart_ctrl.c/.h</code></td>
+            <td>UART Async RX/TX 드라이버, 링버퍼, DTS chosen 기반 UART 인스턴스 선택</td>
+          </tr>
+          <tr>
+            <td><code class="inline">at_cmd.c/.h</code></td>
+            <td>V.25ter 스타일 AT 커맨드 파싱·응답, 전용 스레드(2048B 스택)</td>
+          </tr>
+          <tr>
+            <td rowspan="4"><strong>BLE</strong><br><span style="font-size:11px;color:var(--text-muted);">무선 통신</span></td>
+            <td><code class="inline">ble_manager.c/.h</code></td>
+            <td>연결/해제 콜백 통합 관리, 보안 레벨 협상, MTU 교환</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_peripheral.c/.h</code></td>
+            <td>NUS Server, Advertising 시작/중지</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central.c/.h</code></td>
+            <td>NUS Client, Active Scan, UUID+NAME 필터, 재스캔 백오프</td>
+          </tr>
+          <tr>
+            <td><code class="inline">conn_slot.c/.h</code></td>
+            <td>통합 연결 슬롯 풀(01~08), Central/Peripheral 자동 분기 송신</td>
+          </tr>
+          <tr>
+            <td><strong>데이터 릴레이</strong></td>
+            <td><code class="inline">nus_relay.c/.h</code></td>
+            <td>K_MSGQ 기반 양방향 브릿지 (Device↔Host), D2H/H2D 스레드</td>
+          </tr>
+          <tr>
+            <td rowspan="3"><strong>스토리지</strong><br><span style="font-size:11px;color:var(--text-muted);">영속 저장</span></td>
+            <td><code class="inline">storage_mgr.c/.h</code></td>
+            <td>ZMS(내부 RRAM) — BLE 역할, 장치명, 제품 코드 등 설정값 영속 저장</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr.c/.h</code></td>
+            <td>외부 SPI Flash(W25Q32) + LittleFS — 파일 CRUD, 용량 조회</td>
+          </tr>
+          <tr>
+            <td><code class="inline">chunk_mgr.c/.h</code></td>
+            <td>오프라인 데이터 축적, API별(A1010/A1020/A1030) 용량 관리, 벌크 전송</td>
+          </tr>
+          <tr>
+            <td><strong>하드웨어</strong></td>
+            <td><code class="inline">board_ctrl.c/.h</code></td>
+            <td>GPIO DT spec 기반 LED/버튼 제어, 연결 상태 표시</td>
+          </tr>
+          <tr>
+            <td><strong>진입점</strong></td>
+            <td><code class="inline">main.c</code></td>
+            <td>초기화 시퀀스, 이벤트 콜백 등록, UART 연결 이벤트(+CONNnn/+DISCnn) 발행</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 데이터 흐름 ── -->
+    <h3>1-3. 데이터 흐름</h3>
+    <div class="card">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#10b981;">HOST MCU → BLE 모듈 → 외부 장치 (명령/데이터 전송)</span>
+          <div style="color:var(--text-muted);margin-top:4px;">
+            HOST MCU가 <code class="inline">AT+MDATA=nn,hex</code> 전송 → at_cmd 파싱 → conn_slot_send() → NUS Client/Server 자동 분기 전송
+          </div>
+        </div>
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#f59e0b;">외부 장치 → BLE 모듈 → HOST MCU (수신 알림)</span>
+          <div style="color:var(--text-muted);margin-top:4px;">
+            BLE 데이터 수신 → nus_relay K_MSGQ → <code class="inline">+DATAnn:hex\r\n</code> 형태로 HOST MCU에 UART 알림
+          </div>
+        </div>
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#7c3aed;">HOST MCU → BLE 모듈 (오프라인 축적)</span>
+          <div style="color:var(--text-muted);margin-top:4px;">
+            HOST MCU가 <code class="inline">AT+DSTORE=api,ts,hex</code> 전송 → chunk_mgr_store() → SPI Flash 청크 파일 저장<br>
+            BLE 연결 시 <code class="inline">AT+DSEND=nn</code> → chunk_mgr_send() → 벌크 전송
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ONE-firmware 전략 ── -->
+    <h3>1-4. ONE-firmware 전략</h3>
+    <div class="card">
+      <p style="margin-bottom:12px;">
+        모든 제품에 동일한 펌웨어 바이너리를 탑재한다.
+        제품별 차이는 빌드타임이 아닌 <strong>런타임에 제품 코드 기반으로 분기</strong>한다.
+      </p>
+      <table class="tbl">
+        <thead>
+          <tr><th style="width:160px;">항목</th><th>설명</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>제품 정보 주입</td>
+            <td>HOST MCU가 <code class="inline">AT+PRODUCTCODE=0x0101</code>로 전달 → ZMS(내부 RRAM)에 영속 저장</td>
+          </tr>
+          <tr>
+            <td>런타임 분기</td>
+            <td>chunk_mgr 초기화 시 제품 코드로 설정 테이블 조회 → API별 저장 용량, 청크 크기 등 결정</td>
+          </tr>
+          <tr>
+            <td>기본값(Fallback)</td>
+            <td>미등록 제품 코드 → 기본 설정(product_code=0x0000) 자동 적용</td>
+          </tr>
+          <tr>
+            <td>확장</td>
+            <td>신규 제품 추가 시 <code class="inline">s_product_table[]</code>에 엔트리 1개 추가 (코드 재빌드 필요, 제품 MCU 변경 불필요)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ─────────────────────────── §2 상태 전이 ─────────────────────────── -->
+  <section id="sec-flow">
+    <h2><span class="sec-num">2</span> Central 상태 전이 흐름</h2>
+
+    <div class="card">
+      <div class="flow">
+
+        <!-- BOOT -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">부팅 / 초기화</div>
+            <div class="flow-desc">
+              <code class="inline">main()</code> → <code class="inline">ble_central_init(rx_cb)</code> 호출.<br>
+              데이터 서비스 Client 초기화 (<code class="inline">data_svc_client_init()</code>), UUID 필터 등록, <code class="inline">connect_if_match = 0</code> (수동 연결).
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_central.c — ble_central_init()</span>
+              <span class="ref-tag">ble_central.c — scan_init()</span>
+              <span class="ref-tag green">main.c — role == MULTI/CENTRAL 시에만 호출</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCANNING -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">스캔 시작 (SCANNING)</div>
+            <div class="flow-desc">
+              <code class="inline">ble_central_scan_start()</code> → <code class="inline">bt_scan_start(BT_SCAN_TYPE_SCAN_ACTIVE)</code>.<br>
+              NUS UUID 128bit 필터에 매칭되는 디바이스를 탐색. Active Scan으로 Scan Response도 수신.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_central.c:166 — ble_central_scan_start()</span>
+              <span class="ref-tag green">main.c — role MULTI/CENTRAL 시에만; AT+SCAN=1 은 PERIPHERAL 시 거부</span>
+              <span class="ref-tag orange">prj.conf:38 — CONFIG_BT_SCAN=y</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILTER MATCH -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot orange"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">필터 매칭 → 수동 연결 시도 (CONNECTING)</div>
+            <div class="flow-desc">
+              <code class="inline">scan_filter_match()</code> 콜백 발화.<br>
+              <strong>자기 자신 연결 방지:</strong> <code class="inline">is_self_address()</code>로 자기 주소 비교 → 자기 주소이면 무시 (스캔 계속).<br>
+              외부 장치이면 <code class="inline">bt_scan_stop()</code> → <code class="inline">bt_conn_le_create()</code>로 수동 연결 → <code class="inline">central_conn</code>에 저장.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_central.c — is_self_address() (bt_id_get 비교)</span>
+              <span class="ref-tag">ble_central.c — scan_filter_match() (수동 연결)</span>
+              <span class="ref-tag">ble_central.c — scan_init() UUID 필터 등록</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONNECTED -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">연결 성공 (CONNECTED)</div>
+            <div class="flow-desc">
+              <code class="inline">ble_manager.c: connected()</code> 콜백 → <code class="inline">info.role == BT_CONN_ROLE_CENTRAL</code> 판별.<br>
+              <code class="inline">on_central_connected()</code> 발화 → <code class="inline">board_ctrl_set_central_conn(true)</code> (LED ON).<br>
+              즉시 <code class="inline">bt_conn_set_security(conn, BT_SECURITY_L3)</code> 호출하여 보안 협상 시작.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_manager.c:97 — connected()</span>
+              <span class="ref-tag">ble_manager.c:124 — 역할 판별</span>
+              <span class="ref-tag green">main.c:46 — on_central_connected()</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECURING -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot purple"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">보안 협상 (SECURING)</div>
+            <div class="flow-desc">
+              <code class="inline">security_changed()</code> 콜백 발화 (성공/실패 모두).<br>
+              보안 실패 시에도 NUS Discovery를 진행하는 Fallback 정책 적용.<br>
+              <code class="inline">on_central_security_established()</code> 발화.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_manager.c:161 — security_changed()</span>
+              <span class="ref-tag">ble_manager.c:26 — BT_SECURITY_L3</span>
+              <span class="ref-tag green">main.c:74 — on_central_security_established()</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- GATT DISCOVERY -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot purple"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">GATT Discovery (DISCOVERING)</div>
+            <div class="flow-desc">
+              <code class="inline">data_svc_client_discover(ctx, conn, cb)</code> 호출.<br>
+              data_service 내부에서 서비스 탐색 → 핸들 할당 → Notification 구독을 자동 처리.<br>
+              완료 시 <code class="inline">discover_cb(conn, result)</code> 콜백으로 결과 반환.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">data_service_nus.c — dm_completed_cb() (handles assign + subscribe)</span>
+              <span class="ref-tag">data_service.h — data_svc_client_discover()</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA EXCHANGE -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">데이터 송수신 (OPERATIONAL)</div>
+            <div class="flow-desc">
+              <strong>수신 (Device → Host):</strong> Notification → <code class="inline">data_svc rx_cb(conn, data, len)</code> → 릴레이/AT 라우팅<br>
+              <strong>송신 (Host → Device):</strong> <code class="inline">data_svc_client_send(ctx, data, len)</code> (Write Without Response)
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">data_service.h — data_svc_client_send()</span>
+              <span class="ref-tag">data_service_nus.c — client_received_cb() (CONTAINER_OF로 슬롯 식별)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISCONNECTED / RESCAN -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot red"></div>
+          </div>
+          <div class="flow-body" style="padding-bottom:0;">
+            <div class="flow-title">연결 해제 → 자동 재스캔</div>
+            <div class="flow-desc">
+              <code class="inline">disconnected()</code> → <code class="inline">on_central_disconnected()</code>.<br>
+              <code class="inline">board_ctrl_set_central_conn(false)</code> (LED OFF) →
+              <code class="inline">ble_central_conn_release()</code> →
+              <code class="inline">ble_central_scan_start()</code> (즉시 재스캔).
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_manager.c:138 — disconnected()</span>
+              <span class="ref-tag green">main.c:57 — on_central_disconnected()</span>
+              <span class="ref-tag">ble_central.c:217 — ble_central_conn_release()</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.flow -->
+    </div><!-- /.card -->
+
+    <div class="callout callout-warn" style="margin-top:12px;">
+      <strong>연결 실패 경로:</strong> <code class="inline">connected(conn_err != 0)</code> → <code class="inline">on_central_connect_failed()</code> → <code class="inline">ble_central_conn_release()</code> + <code class="inline">ble_central_scan_start()</code> (main.c:51)
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §2.5 Peripheral 상태 전이 ─────────────────────────── -->
+  <section id="sec-flow-periph">
+    <h2><span class="sec-num" style="background:#10b981;">2.5</span> Peripheral 상태 전이 흐름</h2>
+
+    <div class="card">
+      <div class="flow">
+
+        <!-- BOOT -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">부팅 / 초기화</div>
+            <div class="flow-desc">
+              <code class="inline">main()</code> → <code class="inline">ble_peripheral_init(rx_cb)</code> 호출.<br>
+              데이터 서비스 Server 초기화 (<code class="inline">data_svc_server_init()</code>), 광고 work item 등록.
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_peripheral.c — ble_peripheral_init()</span>
+              <span class="ref-tag">data_service_nus.c — data_svc_server_init()</span>
+              <span class="ref-tag green">main.c — 모든 role에서 호출 (PERIPHERAL/MULTI/CENTRAL)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADVERTISING -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">광고 시작 (ADVERTISING)</div>
+            <div class="flow-desc">
+              <code class="inline">ble_peripheral_start_advertising()</code> → work queue로 <code class="inline">bt_le_adv_start(BT_LE_ADV_CONN_FAST_2)</code> 호출.<br>
+              Scan Response에 동적 장치 이름 포함 (<code class="inline">bt_get_name()</code>).<br>
+              이미 광고 중이면 <code class="inline">-EALREADY</code> 무시 (LOG_DBG).
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_peripheral.c — adv_work_handler()</span>
+              <span class="ref-tag">ad[] — Appearance + Flags + NUS UUID</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONNECTED -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">APP 연결 수락 (CONNECTED)</div>
+            <div class="flow-desc">
+              스마트폰/앱(Central)이 연결 요청 → <code class="inline">ble_manager.c: connected()</code> 콜백.<br>
+              <code class="inline">info.role == BT_CONN_ROLE_PERIPHERAL</code> 판별 →
+              <code class="inline">on_peripheral_connected()</code> 발화.<br>
+              <strong>다중 연결 시:</strong> 빈 슬롯에 인덱스 부여, 광고 재시작하여 추가 연결 수락 (구현 예정).
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_manager.c — connected() → PERIPHERAL 분기</span>
+              <span class="ref-tag green">main.c — on_peripheral_connected()</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA EXCHANGE -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot green"></div>
+            <div class="flow-vert"></div>
+          </div>
+          <div class="flow-body">
+            <div class="flow-title">데이터 송수신 (OPERATIONAL)</div>
+            <div class="flow-desc">
+              <strong>수신 (Host → Module):</strong> APP이 Write → <code class="inline">data_svc server rx_cb(conn, data, len)</code> → 릴레이/AT 라우팅<br>
+              <strong>송신 (Module → Host):</strong> <code class="inline">data_svc_server_send(conn, data, len)</code> → Notification
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_peripheral.c — server_rx_cb()</span>
+              <span class="ref-tag">data_service.h — data_svc_server_send()</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISCONNECTED -->
+        <div class="flow-item">
+          <div class="flow-line-col">
+            <div class="flow-dot red"></div>
+          </div>
+          <div class="flow-body" style="padding-bottom:0;">
+            <div class="flow-title">연결 해제 → 광고 재시작</div>
+            <div class="flow-desc">
+              <code class="inline">disconnected()</code> → <code class="inline">on_peripheral_disconnected()</code>.<br>
+              conn 객체 반환 후 <code class="inline">recycled_cb()</code> → <code class="inline">ble_peripheral_start_advertising()</code> (광고 재시작).<br>
+              <strong>다중 연결 시:</strong> 슬롯 해제, 남은 연결이 MAX 미만이면 광고 재시작 (구현 예정).
+            </div>
+            <div class="flow-ref">
+              <span class="ref-tag">ble_manager.c — disconnected() → PERIPHERAL 분기</span>
+              <span class="ref-tag green">main.c — on_peripheral_disconnected(), on_conn_recycled()</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.flow -->
+    </div><!-- /.card -->
+
+    <div class="callout callout-info" style="margin-top:12px;">
+      <strong>다중 Peripheral 연결 (구현 예정):</strong>
+      <code class="inline">bt_le_adv_start()</code>는 1개 연결 수락 후 광고가 자동 중단됩니다.
+      다중 연결을 위해서는 <code class="inline">on_peripheral_connected()</code>에서 현재 연결 수가 <code class="inline">AT+MLINK</code> 설정값 미만이면
+      광고를 즉시 재시작해야 합니다. MAX 도달 시 광고 중지, 1개 해제되면 광고 재시작.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §3 파라미터 ─────────────────────────── -->
+  <section id="sec-params">
+    <h2><span class="sec-num">3</span> 핵심 파라미터</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>값</th>
+            <th>소스 파일 / 위치</th>
+            <th>비고</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>스캔 방식</strong></td>
+            <td><code class="inline">BT_SCAN_TYPE_SCAN_ACTIVE</code></td>
+            <td><span class="line-ref">ble_central.c:169</span></td>
+            <td>Scan Response도 수신</td>
+          </tr>
+          <tr>
+            <td><strong>스캔 필터</strong></td>
+            <td>NUS UUID 128bit 단일 필터</td>
+            <td><span class="line-ref">ble_central.c:136</span></td>
+            <td>이름/RSSI 필터 미구현</td>
+          </tr>
+          <tr>
+            <td><strong>자동 연결</strong></td>
+            <td><code class="inline">connect_if_match = 0</code> (수동 연결)</td>
+            <td><span class="line-ref">ble_central.c:175</span></td>
+            <td>자기 자신 연결 방지를 위해 수동 연결로 변경. <code class="inline">scan_filter_match()</code>에서 <code class="inline">is_self_address()</code> 검사 후 <code class="inline">bt_conn_le_create()</code> 호출</td>
+          </tr>
+          <tr>
+            <td><strong>연결 파라미터</strong></td>
+            <td><code class="inline">BT_LE_CONN_PARAM_DEFAULT</code></td>
+            <td><span class="line-ref">ble_central.c:129</span></td>
+            <td>interval 7.5~15ms, latency 0, timeout 4000ms</td>
+          </tr>
+          <tr>
+            <td><strong>보안 레벨</strong></td>
+            <td><code class="inline">BT_SECURITY_L3</code></td>
+            <td><span class="line-ref">ble_manager.c:26</span></td>
+            <td>MITM 보호 + 암호화 (SM Level 3)</td>
+          </tr>
+          <tr>
+            <td><strong>보안 실패 시</strong></td>
+            <td>Fallback — GATT Discovery 진행</td>
+            <td><span class="line-ref">ble_manager.c:130-131</span></td>
+            <td>피어가 NUS 노출 시 비보안 연결 허용</td>
+          </tr>
+          <tr>
+            <td><strong>L2CAP TX MTU</strong></td>
+            <td>247 bytes (payload 244 bytes)</td>
+            <td><span class="line-ref">prj.conf:22</span></td>
+            <td>ONE-firmware 고정값</td>
+          </tr>
+          <tr>
+            <td><strong>ACL RX Buffer</strong></td>
+            <td>251 bytes</td>
+            <td><span class="line-ref">prj.conf:23</span></td>
+            <td>payload 244 bytes (251 - 4 L2CAP - 3 ATT)</td>
+          </tr>
+          <tr>
+            <td><strong>최대 연결 수</strong></td>
+            <td>8 (Central + Peripheral 합산)</td>
+            <td><span class="line-ref">prj.conf</span></td>
+            <td><code class="inline">CONFIG_BT_MAX_CONN=8</code> (변경 예정). 제품별 실제 연결 수는 <code class="inline">AT+MLINK</code>로 제어</td>
+          </tr>
+          <tr>
+            <td><strong>최대 페어링 수</strong></td>
+            <td>8</td>
+            <td><span class="line-ref">prj.conf</span></td>
+            <td><code class="inline">CONFIG_BT_MAX_PAIRED=8</code> (변경 예정)</td>
+          </tr>
+          <tr>
+            <td><strong>동시 연결 관리</strong></td>
+            <td><strong>통합 슬롯 01~08</strong></td>
+            <td><span class="line-ref">conn_slot[8]</span></td>
+            <td>Central/Peripheral 구분 없이 연결 순서대로 인덱스 부여. 구현 예정 (§8 참조)</td>
+          </tr>
+          <tr>
+            <td><strong>Peripheral 광고 파라미터</strong></td>
+            <td><code class="inline">BT_LE_ADV_CONN_FAST_2</code></td>
+            <td><span class="line-ref">ble_peripheral.c</span></td>
+            <td>interval 30~60ms, Fast Advertising</td>
+          </tr>
+          <tr>
+            <td><strong>장치 이름 (동적)</strong></td>
+            <td><code class="inline">CONFIG_BT_DEVICE_NAME_DYNAMIC=y</code></td>
+            <td><span class="line-ref">prj.conf</span></td>
+            <td>런타임 <code class="inline">bt_set_name()</code>·AT+BLENAME= 반영. 부팅 시 <code class="inline">bt_set_name(storage_mgr_get_blename())</code>, 스캔응답은 <code class="inline">bt_get_name()</code> 사용</td>
+          </tr>
+          <tr>
+            <td><strong>본딩 저장소</strong></td>
+            <td>ZMS (RRAM 영속 저장)</td>
+            <td><span class="line-ref">prj.conf:55</span></td>
+            <td>nRF54L15 RRAM 전용 백엔드</td>
+          </tr>
+          <tr>
+            <td><strong>데이터 서비스</strong></td>
+            <td>data_service 추상화 계층</td>
+            <td><span class="line-ref">data_service.h / data_service_nus.c</span></td>
+            <td>현재 NUS 구현. Custom Profile 교체 시 .c 파일만 교체 (§9 참조)</td>
+          </tr>
+          <tr>
+            <td><strong>Client TX (Central→Device)</strong></td>
+            <td>Write Without Response</td>
+            <td><span class="line-ref">data_service_nus.c</span></td>
+            <td><code class="inline">data_svc_client_send()</code> → <code class="inline">bt_nus_client_send()</code></td>
+          </tr>
+          <tr>
+            <td><strong>Client RX (Device→Central)</strong></td>
+            <td>Notification (CCCD Subscribe)</td>
+            <td><span class="line-ref">data_service_nus.c</span></td>
+            <td><code class="inline">data_svc_client_discover()</code> 시 자동 구독</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §4 릴레이 흐름 ─────────────────────────── -->
+  <section id="sec-relay">
+    <h2><span class="sec-num">4</span> 데이터 릴레이 흐름 (nus_relay.c)</h2>
+
+    <div class="relay-diagram">
+      <div class="relay-node device">
+        외부 디바이스<br>(NUS Peripheral)
+        <small>BLE Notification</small>
+      </div>
+      <div class="relay-arrow">
+        <div>⇄</div>
+        <small>BLE<br>Link</small>
+      </div>
+      <div class="relay-node module">
+        CW_BLE_MODULE<br>
+        <small style="color:#4f8ef7;">ble_central (NUS Client)</small>
+        <small>↕ K_MSGQ D2H / H2D</small>
+        <small style="color:#4f8ef7;">ble_peripheral (NUS Server)</small>
+      </div>
+      <div class="relay-arrow">
+        <div>⇄</div>
+        <small>BLE<br>Link</small>
+      </div>
+      <div class="relay-node host">
+        스마트폰 / 앱<br>(NUS Central)
+        <small>BLE Write / Notification</small>
+      </div>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>방향</th><th>큐 이름</th><th>큐 크기</th><th>패킷 최대 크기</th><th>스레드</th><th>우선순위</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Device → Host</strong></td>
+            <td><code class="inline">s_d2h_queue</code></td>
+            <td>32 슬롯</td>
+            <td>244 bytes</td>
+            <td><code class="inline">relay_d2h_thread</code></td>
+            <td>7</td>
+          </tr>
+          <tr>
+            <td><strong>Host → Device</strong></td>
+            <td><code class="inline">s_h2d_queue</code></td>
+            <td>32 슬롯</td>
+            <td>244 bytes</td>
+            <td><code class="inline">relay_h2d_thread</code></td>
+            <td>7</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">큐 메모리 사용량 계산</h3>
+      <pre><code class="language-text">패킷 구조체 크기 = data[244] + len(uint16_t) = 246 bytes
+총 메모리 = 246 bytes × 32 슬롯 × 2 방향 ≈ 15.7 KB
+nRF54L15 SRAM: 256 KB → 릴레이 큐 비율: ~6.1%</code></pre>
+      <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">
+        ONE-firmware 정책: 모든 제품 변종이 동일 바이너리를 사용하므로, 가장 많은 데이터를 처리하는 제품 기준으로 고정 크기 설정.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">현재 릴레이 정책(26.03.17 기준): bypass (가공 없음)</h3>
+      <pre><code class="language-c">/* nus_relay.c:68 — Device → Host 릴레이 정책 */
+/*
+ * 현재 정책: bypass (데이터 가공 없이 큐에 적재)
+ *
+ * [필터링] 특정 커맨드 차단:
+ *     if (pkt.data[0] == CMD_BLOCKED) { return; }
+ *
+ * [변환] 내부 프로토콜 → 앱 프로토콜 변환:
+ *     pkt.len = protocol_to_app(pkt.data, len, pkt.data);
+ *
+ * [로깅] 플래시 또는 외부 저장소에 기록:
+ *     audit_log(pkt.data, pkt.len);
+ */
+err = k_msgq_put(&s_d2h_queue, &pkt, K_NO_WAIT);</code></pre>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §5 미결 이슈 ─────────────────────────── -->
+  <section id="sec-issues">
+    <h2><span class="sec-num">5</span> 미결 정책 이슈 (Action Items)</h2>
+
+    <div class="callout callout-danger">
+      <strong>주의:</strong> 이슈 #3은 현재 동작에서 자기 자신에게 연결 시도할 수 있는 버그성 이슈입니다. 우선 검증이 필요합니다.
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>우선순위</th>
+            <th>이슈 내용</th>
+            <th>현재 상태</th>
+            <th>권장 조치</th>
+            <th>관련 파일</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1</strong></td>
+            <td><span class="badge badge-review">검토</span></td>
+            <td><strong>Central 동시 연결 수 한계</strong><br>
+              <code class="inline">central_conn</code>이 단일 포인터 → 1개 디바이스만 관리 가능.<br>
+              <code class="inline">CONFIG_BT_MAX_CONN=6</code>이지만 Central 역할로는 1개만 연결됨.
+            </td>
+            <td>단일 연결 동작</td>
+            <td>제품 요구사항 확인 후 배열 구조(<code class="inline">central_conn[N]</code>) + NUS Client 풀로 확장 여부 결정</td>
+            <td><span class="line-ref">ble_central.c:26-27</span></td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td><span class="badge badge-review">검토</span></td>
+            <td><strong>스캔 필터 강화 필요</strong><br>
+              NUS UUID 128bit 필터 단독 적용. 이름 필터, RSSI 임계값, MAC 주소 화이트리스트 미구현.
+            </td>
+            <td>UUID 필터만 적용</td>
+            <td>
+              디바이스 이름 필터 추가: <code class="inline">bt_scan_filter_add(BT_SCAN_FILTER_TYPE_NAME, ...)</code><br>
+              또는 MAC 주소 화이트리스트 방식 검토
+            </td>
+            <td><span class="line-ref">ble_central.c:136-144</span></td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td><span class="badge badge-done">완료</span></td>
+            <td><strong>자기 자신 연결 방지</strong><br>
+              <code class="inline">ble_peripheral.c</code>의 광고 패킷에 NUS UUID 포함.<br>
+              Central 스캔이 자기 자신을 필터 매칭하여 연결 시도할 가능성 있음.
+            </td>
+            <td>구현 완료 (2026-03-19)</td>
+            <td>
+              <code class="inline">connect_if_match = 0</code>으로 변경하여 자동 연결 비활성화.<br>
+              <code class="inline">is_self_address()</code> 함수 추가: <code class="inline">bt_id_get()</code>으로 자기 주소 비교.<br>
+              자기 주소이면 무시, 아니면 수동으로 <code class="inline">bt_conn_le_create()</code> 호출.
+            </td>
+            <td>
+              <span class="line-ref">ble_central.c:98-111 (is_self_address)</span><br>
+              <span class="line-ref">ble_central.c:115-151 (scan_filter_match)</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>4</strong></td>
+            <td><span class="badge badge-urgent">시급</span></td>
+            <td><strong>GATT Discovery 실패 정책 미결</strong><br>
+              Discovery 실패 시 연결을 유지한 채 방치. 재시도/해제 정책이 결정되지 않은 상태.
+            </td>
+            <td>연결 유지(방치)</td>
+            <td>
+              <strong>옵션 1 (권장)</strong>: 해제 후 재스캔<br>
+              <code class="inline">bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN)</code><br>
+              <strong>옵션 2</strong>: 최대 N회 재시도 후 해제<br>
+              재시도 카운터(<code class="inline">s_retry_cnt</code>) 추가
+            </td>
+            <td><span class="line-ref">main.c:80-103</span></td>
+          </tr>
+          <tr>
+            <td><strong>5</strong></td>
+            <td><span class="badge badge-pending">미결</span></td>
+            <td><strong>Active Scan + Advertising 동시 동작 RF 검증 필요</strong><br>
+              Central Active Scan과 Peripheral Fast Advertising이 동시에 동작 중.<br>
+              RF 스케줄링 충돌로 인한 스캔 누락 또는 광고 지연 가능성.
+            </td>
+            <td>미검증</td>
+            <td>
+              실측 테스트: 스캔 간격 vs 광고 간격 충돌 여부 확인.<br>
+              필요 시 스캔 파라미터 조정(<code class="inline">scan_param</code> = NULL 현재 기본값 사용 중)
+            </td>
+            <td>
+              <span class="line-ref">ble_central.c:127</span><br>
+              <span class="line-ref">ble_peripheral.c:45</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>6</strong></td>
+            <td><span class="badge badge-pending">미결</span></td>
+            <td><strong>연결 실패 시 즉시 재스캔 (백오프 전략 없음)</strong><br>
+              연결 실패 또는 해제 즉시 재스캔. 주변에 NUS 디바이스가 없을 경우 불필요한 스캔 지속.
+            </td>
+            <td>즉시 재스캔</td>
+            <td>
+              지수 백오프 전략 검토:<br>
+              실패 횟수에 따라 재스캔 대기 시간을 1s → 2s → 4s → ... 최대 60s로 증가.<br>
+              <code class="inline">k_work_schedule()</code> 활용
+            </td>
+            <td>
+              <span class="line-ref">main.c:51-54</span><br>
+              <span class="line-ref">main.c:57-61</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §6 제품별 역할 정책 ─────────────────────────── -->
+  <section id="sec-multirole">
+    <h2><span class="sec-num">6</span> 제품별 BLE 역할 정책</h2>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>ONE-firmware 정책:</strong> 비데 · 무선리모컨 · 매트리스 모두 <strong>동일한 바이너리</strong>를 사용합니다.
+      제품별 역할은 런타임 설정값(<code class="inline">cw/role</code>)으로 구분하며, AT 커맨드로 설정 후 ZMS에 영속 저장됩니다.
+    </div>
+
+    <!-- 제품 카드 -->
+    <div class="product-grid">
+
+      <!-- 비데 -->
+      <div class="product-card">
+        <div class="product-card-title">
+          비데
+          <span class="role-badge role-multi">ROLE_MULTI</span>
+        </div>
+        <div class="product-card-body">
+          <strong>Central:</strong> 무선리모컨에 연결 (NUS Client)<br>
+          <strong>Peripheral:</strong> 스마트폰 앱의 연결 수락 (NUS Server)<br><br>
+          스캔 + 광고 동시 동작.<br>
+          리모컨 연결 후에도 앱 연결을 위한 광고 지속.<br>
+          Central 연결 대상: 리모컨의 NUS UUID 광고.
+        </div>
+      </div>
+
+      <!-- 무선리모컨 -->
+      <div class="product-card">
+        <div class="product-card-title">
+          무선리모컨
+          <span class="role-badge role-peripheral">ROLE_PERIPHERAL</span>
+        </div>
+        <div class="product-card-body">
+          <strong>Peripheral만 활성:</strong> 비데(ROLE_MULTI)의 Central에 연결됨.<br>
+          스캔 비활성화 — <code class="inline">ble_central_init()</code> 호출 안 함 (역할 분기 적용됨).<br><br>
+          광고만 수행, 연결은 비데가 먼저 시도.<br>
+          AT+SCAN=1/0 은 ROLE_PERIPHERAL 시 <code class="inline">ERROR:ROLE_PERIPHERAL</code> 로 거부됨.
+        </div>
+      </div>
+
+      <!-- 매트리스 -->
+      <div class="product-card">
+        <div class="product-card-title">
+          매트리스
+          <span class="role-badge role-multi">ROLE_MULTI</span>
+        </div>
+        <div class="product-card-body">
+          <strong>Central:</strong> 무선리모컨 최대 4대 연결 (NUS Client)<br>
+          <strong>Peripheral:</strong> 스마트폰 앱 최대 4대 연결 수락 (NUS Server)<br><br>
+          <code class="inline">AT+MLINK=8</code>로 총 동시 연결 수 설정.<br>
+          Central 대상 디바이스 이름 필터: <code class="inline">cw/target_name</code>.<br>
+          레거시 BoT-nLE523 Multicon role 정책 호환 (MULTIDROP/NODEDROP).
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 역할별 초기화 분기 구현 완료 -->
+    <div class="callout callout-info">
+      <strong>역할별 초기화 분기 (구현 완료):</strong> <code class="inline">main.c</code>에서 <code class="inline">storage_mgr_get_role()</code>에 따라 Central 초기화·스캔을 분기합니다.
+      ROLE_PERIPHERAL 시 <code class="inline">ble_central_init()</code> 미호출, 스캔 미시작. NUS relay는 <code class="inline">tx_to_device</code>에 NULL 전달. AT+SCAN=1/0 은 <code class="inline">at_cmd.c</code>에서 ROLE_PERIPHERAL이면 거부합니다.
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">역할 열거형 정의 (구현됨)</h3>
+      <pre><code class="language-c">/* storage_mgr.h (신규 모듈) */
+typedef enum {
+    ROLE_PERIPHERAL = 0,  /* Peripheral만 활성: 무선리모컨 */
+    ROLE_CENTRAL    = 1,  /* Central만 활성: (현재 해당 제품 없음, 확장용) */
+    ROLE_MULTI      = 2,  /* Central + Peripheral 동시: 비데, 매트리스 */
+} cw_ble_role_t;
+
+#define CW_ROLE_DEFAULT  ROLE_MULTI   /* 공장 출하 기본값 */</code></pre>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">역할별 초기화 분기 (구현됨 — main.c)</h3>
+      <pre><code class="language-c">/* main.c — settings_load() 이후 role 복원, nus_relay_init은 tx_to_device 조건부 */
+cw_ble_role_t role = storage_mgr_get_role();
+nus_relay_tx_fn_t tx_to_device = (role != ROLE_PERIPHERAL) ? ble_central_nus_send : NULL;
+nus_relay_init(ble_peripheral_nus_send, tx_to_device);
+
+ble_peripheral_init(nus_relay_from_host);
+
+if (role == ROLE_MULTI || role == ROLE_CENTRAL) {
+    ble_central_init(nus_relay_from_device);
+    ble_central_scan_start();
+}
+/* ROLE_PERIPHERAL: Central 미초기화, 스캔 없음 */
+ble_peripheral_start_advertising();</code></pre>
+    </div>
+
+    <h3>제품별 AT 커맨드 설정 시나리오</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>제품</th><th>설정 커맨드</th><th>저장 키</th><th>재부팅 후</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>비데</td>
+            <td>
+              <code class="inline">AT+ROLE=MULTI</code><br>
+              <code class="inline">AT+TARGETNAME=COWAY_REMOTE</code>
+            </td>
+            <td><code class="inline">cw/role</code>, <code class="inline">cw/target_name</code></td>
+            <td>스캔 + 광고 동시 시작, 리모컨에 자동 연결</td>
+          </tr>
+          <tr>
+            <td>무선리모컨</td>
+            <td><code class="inline">AT+ROLE=PERIPHERAL</code></td>
+            <td><code class="inline">cw/role</code></td>
+            <td>광고만 시작, 스캔 없음</td>
+          </tr>
+          <tr>
+            <td>매트리스</td>
+            <td>
+              <code class="inline">AT+ROLE=MULTI</code><br>
+              <code class="inline">AT+MLINK=8</code><br>
+              <code class="inline">AT+TARGETNAME=COWAY_REMOTE</code>
+            </td>
+            <td><code class="inline">cw/role</code>, <code class="inline">cw/mlink</code>, <code class="inline">cw/target_name</code></td>
+            <td>Central 4 + Peripheral 4, 총 8연결 Multi-Role</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §7 설정 저장 설계 ─────────────────────────── -->
+  <section id="sec-storage">
+    <h2><span class="sec-num">7</span> 스토리지 아키텍처 설계</h2>
+
+    <!-- ── 전체 스토리지 구조도 ── -->
+    <p style="margin-bottom:20px;color:var(--text-muted);font-size:14px;">
+      스토리지는 <strong>데이터 성격에 따라 두 도메인으로 분리</strong>합니다.
+      BLE 설정/본딩 데이터는 내부 RRAM(ZMS)에, IoT 사용자 데이터(수면 데이터 등)는 SPI00에 연결된 외부 시리얼 플래시(LittleFS)에 저장합니다.
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+
+      <!-- 내부 RRAM 박스 -->
+      <div style="background:var(--surface);border:2px solid #7c3aed;border-radius:12px;padding:20px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:12px;">
+          내부 RRAM (nRF54L15 온칩)
+        </div>
+        <div style="font-size:13px;margin-bottom:10px;">
+          <strong>관리 방식:</strong> Zephyr <code class="inline">settings</code> 서브시스템<br>
+          <strong>백엔드:</strong> ZMS (CONFIG_SETTINGS_ZMS=y)<br>
+          <strong>접근:</strong> <code class="inline">settings_save_one()</code> / <code class="inline">settings_load()</code>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;line-height:1.9;">
+          <code class="inline">cw/role</code> — BLE 역할 (ROLE_MULTI 등)<br>
+          <code class="inline">cw/blename</code> — BLE 장치 이름<br>
+          <code class="inline">cw/target_name</code> — Central 스캔 필터<br>
+          <code class="inline">bt/*</code> — BLE 본딩 정보 (Zephyr 자동)
+        </div>
+      </div>
+
+      <!-- 외부 SPI Flash 박스 -->
+      <div style="background:var(--surface);border:2px solid #10b981;border-radius:12px;padding:20px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;margin-bottom:12px;">
+          외부 시리얼 플래시 (SPI00 연결)
+        </div>
+        <div style="font-size:13px;margin-bottom:10px;">
+          <strong>관리 방식:</strong> Zephyr <strong>LittleFS</strong><br>
+          <strong>인터페이스:</strong> SPI00 (SPIM)<br>
+          <strong>접근:</strong> POSIX File API (<code class="inline">fopen</code> / <code class="inline">fwrite</code> 등)
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;line-height:1.9;">
+          수면 데이터 (Sleep tracking)<br>
+          IoT 사용자 데이터 일반<br>
+          로그 / 이벤트 기록<br>
+          (향후 제품별 확장 예정)
+        </div>
+      </div>
+    </div>
+
+    <!-- 아키텍처 플로우 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;">전체 스토리지 흐름도</div>
+      <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+
+        <!-- 앱 레이어 -->
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">애플리케이션</div>
+          <div class="storage-node" style="margin-bottom:8px;">at_cmd.c<br><small style="font-weight:400;color:var(--text-muted);">AT+ROLE= 등</small></div>
+          <div class="storage-node">IoT 데이터<br><small style="font-weight:400;color:var(--text-muted);">수면 데이터 등</small></div>
+        </div>
+
+        <div class="storage-arrow" style="margin-top:32px;">→</div>
+
+        <!-- 미들웨어 -->
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">미들웨어</div>
+          <div class="storage-node" style="margin-bottom:8px;border-color:#7c3aed;background:rgba(124,58,237,0.08);">storage_mgr.c<br><small style="font-weight:400;color:var(--text-muted);">settings 래퍼</small></div>
+          <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">data_mgr.c<br><small style="font-weight:400;color:var(--text-muted);">LittleFS 래퍼</small></div>
+        </div>
+
+        <div class="storage-arrow" style="margin-top:32px;">→</div>
+
+        <!-- Zephyr 서브시스템 -->
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Zephyr 서브시스템</div>
+          <div class="storage-node" style="margin-bottom:8px;border-color:#7c3aed;background:rgba(124,58,237,0.08);">settings / ZMS<br><small style="font-weight:400;color:var(--text-muted);">CONFIG_SETTINGS_ZMS</small></div>
+          <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">LittleFS<br><small style="font-weight:400;color:var(--text-muted);">CONFIG_FILE_SYSTEM_LITTLEFS</small></div>
+        </div>
+
+        <div class="storage-arrow" style="margin-top:32px;">→</div>
+
+        <!-- 하드웨어 -->
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">하드웨어</div>
+          <div class="storage-node" style="margin-bottom:8px;border-color:#7c3aed;background:rgba(124,58,237,0.08);">내부 RRAM<br><small style="font-weight:400;color:var(--text-muted);">nRF54L15 온칩</small></div>
+          <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">외부 Serial Flash<br><small style="font-weight:400;color:var(--text-muted);">SPI00 (SPIM)</small></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 도메인 1: 내부 RRAM (ZMS) ── -->
+    <h3>도메인 1 — 내부 RRAM : BLE 설정 / 본딩 (ZMS)</h3>
+
+    <h3 style="font-size:14px;color:var(--text-muted);margin-top:0;">NVS vs ZMS — 왜 ZMS인가</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>NVS</th><th>ZMS (채택)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>대상 메모리</strong></td>
+            <td>Flash (erase sector 기반)</td>
+            <td>Flash + <strong>RRAM / MRAM</strong> 모두 지원</td>
+          </tr>
+          <tr>
+            <td><strong>쓰기 단위</strong></td>
+            <td>Flash erase sector 정렬 필요</td>
+            <td>임의 크기 정렬 가능 (바이트 단위)</td>
+          </tr>
+          <tr>
+            <td><strong>nRF54L15 지원</strong></td>
+            <td><span class="badge badge-urgent">비권장</span> — RRAM 구조와 불일치</td>
+            <td><span class="badge badge-done">공식 권장</span> — RRAM 전용 설계</td>
+          </tr>
+          <tr>
+            <td><strong>Garbage Collection</strong></td>
+            <td>sector 단위 GC</td>
+            <td>page 단위 GC (더 세밀)</td>
+          </tr>
+          <tr>
+            <td><strong>Zephyr 도입</strong></td>
+            <td>구형 (nRF5 시리즈 시대)</td>
+            <td>2024년 도입, nRF54 시리즈 타겟</td>
+          </tr>
+          <tr>
+            <td><strong>현재 prj.conf</strong></td>
+            <td>미사용</td>
+            <td><code class="inline">CONFIG_SETTINGS_ZMS=y</code> 이미 적용</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      nRF54L15는 Flash가 아닌 <strong>RRAM(Resistive RAM)</strong>을 내장 메모리로 사용합니다.
+      RRAM은 바이트 단위로 쓸 수 있어 "erase 후 write" 구조인 Flash와 다르므로, NVS 대신 ZMS가 구조적으로 적합합니다.
+      BLE 본딩 정보(<code class="inline">bt/</code>)도 이미 같은 ZMS 경로로 저장되므로 추가 드라이버 없이 확장 가능합니다.
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">settings 키 구조 (구현됨)</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>settings 키</th><th>타입</th><th>기본값</th><th>설명</th><th>AT 커맨드</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">cw/role</code></td>
+            <td><code class="inline">uint8_t</code></td>
+            <td><code class="inline">ROLE_MULTI (2)</code></td>
+            <td>제품 BLE 역할</td>
+            <td><code class="inline">AT+ROLE=</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">cw/blename</code></td>
+            <td><code class="inline">char[33]</code></td>
+            <td><code class="inline">COWAY_BLE_MODULE</code></td>
+            <td>BLE 장치 이름 (ZMS 영속 저장, <code class="inline">CONFIG_BT_DEVICE_NAME_DYNAMIC</code>으로 런타임·광고 반영)</td>
+            <td><code class="inline">AT+BLENAME=</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">cw/target_name</code></td>
+            <td><code class="inline">char[33]</code></td>
+            <td>빈 문자열</td>
+            <td>Central 스캔 이름 필터 (비어있으면 UUID 필터만 적용)</td>
+            <td><code class="inline">AT+TARGETNAME=</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">bt/*</code></td>
+            <td>—</td>
+            <td>—</td>
+            <td>BLE 본딩 정보 (Zephyr 자동 관리)</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">저장 / 복원 흐름</h3>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">AT 커맨드 → ZMS 저장</div>
+      <div class="storage-flow">
+        <div class="storage-node">UART RX<br><small style="font-weight:400;color:var(--text-muted);">AT+ROLE=MULTI</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">at_cmd.c<br><small style="font-weight:400;color:var(--text-muted);">cmd_role_set()</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">storage_mgr.c<br><small style="font-weight:400;color:var(--text-muted);">storage_mgr_set_role()</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node" style="border-color:#7c3aed;background:rgba(124,58,237,0.08);">ZMS (RRAM)<br><small style="font-weight:400;color:var(--text-muted);">settings_save_one()</small></div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin:20px 0 14px;">부팅 시 복원</div>
+      <div class="storage-flow">
+        <div class="storage-node" style="border-color:#7c3aed;background:rgba(124,58,237,0.08);">ZMS (RRAM)<br><small style="font-weight:400;color:var(--text-muted);">settings_load()</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">storage_mgr.c<br><small style="font-weight:400;color:var(--text-muted);">settings_set_cb()</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">main.c<br><small style="font-weight:400;color:var(--text-muted);">storage_mgr_get_role()<br>bt_set_name(get_blename())</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">역할별<br>초기화 분기</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">storage_mgr API (구현됨)</h3>
+    <div class="card">
+      <pre><code class="language-c">/* storage_mgr.h (신규 모듈 — src/app/storage_mgr.c/.h) */
+
+typedef enum {
+    ROLE_PERIPHERAL = 0,
+    ROLE_CENTRAL    = 1,
+    ROLE_MULTI      = 2,
+} cw_ble_role_t;
+
+int           storage_mgr_init(void);                          /* settings 핸들러 등록 */
+cw_ble_role_t storage_mgr_get_role(void);                      /* 미저장 시 ROLE_MULTI */
+int           storage_mgr_set_role(cw_ble_role_t role);        /* ZMS 즉시 영속 저장 */
+const char   *storage_mgr_get_blename(void);
+int           storage_mgr_set_blename(const char *name);
+const char   *storage_mgr_get_target_name(void);               /* 빈 문자열 = 이름 필터 미적용 */
+int           storage_mgr_set_target_name(const char *name);</code></pre>
+    </div>
+
+    <!-- ── 도메인 2: 외부 SPI Flash (LittleFS) ── -->
+    <h3 style="margin-top:36px;">도메인 2 — 외부 시리얼 플래시 : IoT 사용자 데이터 (LittleFS)</h3>
+
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>내용</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>물리 인터페이스</strong></td>
+            <td>SPI00 (SPIM) — nRF54L15의 고속 SPI 마스터</td>
+          </tr>
+          <tr>
+            <td><strong>파일 시스템</strong></td>
+            <td>LittleFS (Zephyr <code class="inline">CONFIG_FILE_SYSTEM_LITTLEFS=y</code>)</td>
+          </tr>
+          <tr>
+            <td><strong>저장 데이터</strong></td>
+            <td>수면 데이터, IoT 사용자 데이터, 이벤트 로그 등 (향후 확장)</td>
+          </tr>
+          <tr>
+            <td><strong>접근 API</strong></td>
+            <td><code class="inline">data_mgr</code> 래퍼 → Zephyr <code class="inline">fs_open()</code> / <code class="inline">fs_write()</code> / <code class="inline">fs_read()</code> / <code class="inline">fs_close()</code></td>
+          </tr>
+          <tr>
+            <td><strong>마운트 포인트</strong></td>
+            <td><code class="inline">/user</code> (fstab automount, 플랫 파일 구조)</td>
+          </tr>
+          <tr>
+            <td><strong>내결함성</strong></td>
+            <td>LittleFS 내장 — 쓰기 중 전원 차단 시 자동 복구 (COW 저널링)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info" style="margin-bottom:16px;">
+      <strong>LittleFS 선택 이유:</strong> 외부 시리얼 플래시는 erase sector 기반 NOR Flash이므로 LittleFS가 적합합니다.
+      LittleFS는 <strong>power-loss resilience</strong>(쓰기 중 전원 차단 복구), wear leveling을 내장하여 IoT 디바이스 환경에 최적화되어 있습니다.
+      Zephyr의 <code class="inline">CONFIG_FILE_SYSTEM_LITTLEFS</code>를 통해 POSIX 파일 API로 접근하므로 애플리케이션 코드의 이식성이 높습니다.
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;color:var(--text-muted);">데이터 관리 모듈 — data_mgr (구현됨)</h3>
+      <pre><code class="language-c">/* data_mgr.h — src/app/data_mgr.c/.h */
+
+typedef struct {
+    uint32_t total_bytes;   /* 전체 용량 */
+    uint32_t used_bytes;    /* 사용 중 */
+    uint32_t free_bytes;    /* 여유 공간 */
+} data_mgr_usage_t;
+
+typedef bool (*data_mgr_list_cb_t)(const char *name, uint32_t size, void *user);
+
+int  data_mgr_init(void);                                           /* SPI Flash + LittleFS 초기화 */
+bool data_mgr_is_ready(void);                                       /* 마운트 상태 확인 */
+int  data_mgr_write(const char *fname, const void *data, size_t len);  /* 파일 쓰기 (생성/덮어쓰기) */
+int  data_mgr_read(const char *fname, void *buf, size_t buf_sz, size_t *out_len); /* 파일 읽기 */
+int  data_mgr_delete(const char *fname);                             /* 파일 삭제 */
+int  data_mgr_list(data_mgr_list_cb_t cb, void *user);              /* 파일 목록 탐색 */
+int  data_mgr_format(void);                                          /* 전체 포맷 + 재마운트 */
+int  data_mgr_get_usage(data_mgr_usage_t *usage);                    /* 사용량 조회 */</code></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <strong>두 스토리지 도메인의 독립성 보장:</strong>
+      <code class="inline">storage_mgr</code>(ZMS)와 <code class="inline">data_mgr</code>(LittleFS)는 서로 독립적인 모듈입니다.
+      BLE 설정 초기화(<code class="inline">settings_load()</code>)와 외부 플래시 마운트(<code class="inline">fs_mount()</code>)는 순서 의존성이 없으므로 병렬 초기화가 가능합니다.
+    </div>
+
+    <h3>추가 예정 AT 커맨드 (BLE 설정 관련)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>커맨드</th><th>동작</th><th>저장 위치</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">AT+ROLE=MULTI</code></td>
+            <td>ROLE_MULTI 설정</td>
+            <td>내부 RRAM — <code class="inline">cw/role = 2</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+ROLE=CENTRAL</code></td>
+            <td>ROLE_CENTRAL 설정</td>
+            <td>내부 RRAM — <code class="inline">cw/role = 1</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+ROLE=PERIPHERAL</code></td>
+            <td>ROLE_PERIPHERAL 설정</td>
+            <td>내부 RRAM — <code class="inline">cw/role = 0</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+ROLE?</code></td>
+            <td>현재 설정 역할 조회</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+TARGETNAME=&lt;name&gt;</code></td>
+            <td>Central 스캔 이름 필터 설정</td>
+            <td>내부 RRAM — <code class="inline">cw/target_name</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+TARGETNAME?</code></td>
+            <td>현재 이름 필터 조회</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+BLENAME=&lt;name&gt;</code></td>
+            <td>BLE 이름 설정 (ZMS 영속 저장, <code class="inline">bt_set_name()</code> 즉시 적용, 광고 스캔응답은 다음 광고 시작 시 반영)</td>
+            <td>내부 RRAM — <code class="inline">cw/blename</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §8 다중 연결 슬롯 ─────────────────────────── -->
+  <section id="sec-multiconn">
+    <h2><span class="sec-num">8</span> 다중 연결 슬롯 아키텍처</h2>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>ONE-firmware 범용 모듈 원칙:</strong> CW_BLE_MODULE은 비데, 리모컨, 매트리스, 안마의자 등 모든 제품에
+      <strong>동일한 바이너리</strong>로 탑재됩니다. 제품 개발자는 AT 커맨드(<code class="inline">AT+ROLE</code>, <code class="inline">AT+MLINK</code>)로
+      역할과 연결 수만 설정하며, Central/Peripheral의 내부 구분을 알 필요가 없습니다.
+    </div>
+
+    <h3>통합 연결 인덱스 (01~08)</h3>
+    <p style="margin-bottom:16px;color:var(--text-muted);font-size:14px;">
+      연결되는 순서대로 01~08 인덱스가 부여됩니다. Central 연결이든 Peripheral 연결이든 동일한 인덱스 체계를 사용하며,
+      HOST MCU(제품 개발자)에게 내부 역할 구분은 노출되지 않습니다.
+    </p>
+
+    <div class="card">
+      <h3 style="margin-top:0;">연결 슬롯 구조 (구현 예정)</h3>
+      <pre><code class="language-c">#define CONN_SLOT_MAX  8   /* ONE-firmware 상한: CONFIG_BT_MAX_CONN */
+
+struct conn_slot {
+    struct bt_conn       *conn;        /* NULL = 빈 슬롯 */
+    data_svc_client_t     client;      /* Central 연결 시 사용 (데이터 서비스 클라이언트 컨텍스트) */
+    uint8_t               idx;         /* 01~08 (연결 순서 부여) */
+    bool                  is_central;  /* 내부 전용: 송신 함수 분기용 */
+    bool                  discovered;  /* Central: GATT Discovery 완료 여부 */
+};
+
+static struct conn_slot s_slots[CONN_SLOT_MAX];</code></pre>
+    </div>
+
+    <h3>제품별 연결 설정 예시</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>제품</th><th>AT 커맨드</th><th>Central</th><th>Peripheral</th><th>총 연결</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>리모컨</td>
+            <td><code class="inline">AT+ROLE=PERIPHERAL</code> + <code class="inline">AT+MLINK=1</code></td>
+            <td>0</td>
+            <td>1 (비데에 연결됨)</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>비데</td>
+            <td><code class="inline">AT+ROLE=MULTI</code> + <code class="inline">AT+MLINK=2</code></td>
+            <td>1 (리모컨)</td>
+            <td>1 (앱)</td>
+            <td>2</td>
+          </tr>
+          <tr>
+            <td>매트리스</td>
+            <td><code class="inline">AT+ROLE=MULTI</code> + <code class="inline">AT+MLINK=8</code></td>
+            <td>최대 4 (리모컨)</td>
+            <td>최대 4 (앱)</td>
+            <td>최대 8</td>
+          </tr>
+          <tr>
+            <td>안마의자</td>
+            <td><code class="inline">AT+ROLE=MULTI</code> + <code class="inline">AT+MLINK=3</code></td>
+            <td>1 (리모컨)</td>
+            <td>2 (앱)</td>
+            <td>3</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <strong>Central/Peripheral 배분:</strong> 총 연결 수(<code class="inline">AT+MLINK</code>)만 설정하며,
+      Central과 Peripheral의 배분은 런타임에 동적으로 결정됩니다 (빈 슬롯에 연결 순서대로 할당).
+      모든 슬롯이 사용 중이면 추가 연결은 거부됩니다.
+    </div>
+
+    <h3>연결 이벤트 UART 알림 (레거시 BoT-nLE523 호환)</h3>
+    <div class="card">
+      <pre><code class="language-text">연결 성공:  +CONNnn[xx:xx:xx:xx:xx:xx]    (nn = 01~08, 연결 인덱스)
+연결 해제:  +DISCnn                       (nn = 00이면 전체 연결 해제)
+연결 수:    AT+MCONNLINK?  →  3           (현재 연결된 장치 수)
+장치 정보:  AT+MCONNINFO=03  →  CONN03[xx:xx:xx:xx:xx:xx]</code></pre>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §9 데이터 서비스 추상화 ─────────────────────────── -->
+  <section id="sec-datasvc">
+    <h2><span class="sec-num">9</span> 데이터 서비스 추상화 (data_service)</h2>
+
+    <p style="margin-bottom:20px;color:var(--text-muted);font-size:14px;">
+      BLE 데이터 통신 프로파일(NUS, Custom 등)을 <strong>추상화 계층</strong>으로 분리하여,
+      프로파일 교체 시 <code class="inline">data_service_nus.c</code> 파일 하나만 교체하면 되도록 설계합니다.
+      <code class="inline">ble_central.c</code>, <code class="inline">ble_peripheral.c</code>, <code class="inline">at_cmd.c</code> 등 상위 코드는
+      프로파일에 독립적인 <code class="inline">data_svc_*</code> API만 호출합니다.
+    </p>
+
+    <div class="arch-diagram" style="flex-direction:column;padding:24px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;">프로파일 교체 구조</div>
+      <div style="display:flex;gap:16px;width:100%;align-items:stretch;">
+        <div style="flex:1;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">상위 레이어 (변경 불필요)</div>
+          <div class="arch-box module">ble_central.c / ble_peripheral.c<small>data_svc_* API 호출</small></div>
+        </div>
+        <div style="display:flex;align-items:center;font-size:18px;color:var(--text-muted);">→</div>
+        <div style="flex:1;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">추상화 인터페이스</div>
+          <div class="arch-box" style="border-color:#7c3aed;background:rgba(124,58,237,0.08);">data_service.h<small>프로파일 독립 API</small></div>
+        </div>
+        <div style="display:flex;align-items:center;font-size:18px;color:var(--text-muted);">→</div>
+        <div style="flex:1;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">구현체 (교체 대상)</div>
+          <div class="arch-box device">data_service_nus.c<small>현재: NUS (bt_nus_*)</small></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>data_service API (구현 완료)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>함수</th><th>역할</th><th>래핑 대상 (NUS)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">data_svc_server_init(rx_cb)</code></td>
+            <td>Server GATT 서비스 등록</td>
+            <td><code class="inline">bt_nus_init()</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_server_send(conn, data, len)</code></td>
+            <td>Server Notification 전송</td>
+            <td><code class="inline">bt_nus_send()</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_init(ctx, rx_cb)</code></td>
+            <td>Client 인스턴스 초기화 (슬롯당 1개)</td>
+            <td><code class="inline">bt_nus_client_init()</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_discover(ctx, conn, cb)</code></td>
+            <td>GATT Discovery + 핸들 할당 + 구독</td>
+            <td><code class="inline">bt_gatt_dm_start()</code> + <code class="inline">bt_nus_handles_assign()</code> + <code class="inline">bt_nus_subscribe_receive()</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_send(ctx, data, len)</code></td>
+            <td>Client Write 전송</td>
+            <td><code class="inline">bt_nus_client_send()</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_get_uuid()</code></td>
+            <td>스캔 필터용 서비스 UUID</td>
+            <td><code class="inline">BT_UUID_NUS_SERVICE</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <strong>Custom Profile 교체 시:</strong>
+      (1) <code class="inline">data_service_custom.c</code> 작성 (동일 API 구현),
+      (2) <code class="inline">CMakeLists.txt</code>에서 <code class="inline">data_service_nus.c</code> → <code class="inline">data_service_custom.c</code> 교체,
+      (3) <code class="inline">data_service.h</code>의 client struct 내 프로파일 타입 변경.
+      상위 코드(ble_central, ble_peripheral, at_cmd, nus_relay)는 수정 불필요.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §10 데이터 라우팅 정책 ─────────────────────────── -->
+  <section id="sec-mdata">
+    <h2><span class="sec-num">10</span> 데이터 라우팅 정책 (MULTIDROP / NODEDROP)</h2>
+
+    <p style="margin-bottom:20px;color:var(--text-muted);font-size:14px;">
+      레거시 BoT-nLE523 Multicon role의 데이터 통신 정책을 계승합니다.
+      <strong>HOST MCU가 AT 커맨드로 데이터 라우팅을 제어</strong>하며,
+      BLE 모듈은 인덱스에 따라 해당 장치에 데이터를 전달합니다.
+    </p>
+
+    <h3>송신 정책</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>모드</th><th>AT 커맨드</th><th>동작</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>MULTIDROP</strong></td>
+            <td><code class="inline">AT+MDATA=00,&lt;data&gt;</code></td>
+            <td>연결된 <strong>모든</strong> 장치에 동일 데이터 전송 (Central + Peripheral 무관)</td>
+          </tr>
+          <tr>
+            <td><strong>NODEDROP</strong></td>
+            <td><code class="inline">AT+MDATA=03,&lt;data&gt;</code></td>
+            <td>인덱스 03번 장치에<strong>만</strong> 데이터 전송</td>
+          </tr>
+          <tr>
+            <td><strong>Bypass</strong></td>
+            <td><code class="inline">AT+MBYPASS=ON</code></td>
+            <td>UART 수신 데이터를 모든 장치에 자동 전달 (AT 구조 없이)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>수신 정책</h3>
+    <div class="card">
+      <pre><code class="language-text">/* 상대 장치에서 데이터 수신 시 HOST MCU에 알림 */
++DATA03[Hello World]     ← 인덱스 03번 장치에서 수신
+
+/* HOST MCU는 인덱스로 어떤 장치인지 식별 가능 */
+/* Central/Peripheral 구분 없이 통합 인덱스 사용 */</code></pre>
+    </div>
+
+    <h3>내부 송신 분기 (모듈 내부, 개발자 비노출)</h3>
+    <div class="card">
+      <pre><code class="language-c">/* AT+MDATA=idx,data 수신 시 내부 처리 */
+struct conn_slot *slot = find_slot_by_idx(idx);
+
+if (slot->is_central) {
+    /* Central → 상대 Peripheral: NUS Client Write */
+    data_svc_client_send(&slot->client, data, len);
+} else {
+    /* Peripheral → 상대 Central: NUS Server Notification */
+    data_svc_server_send(slot->conn, data, len);
+}</code></pre>
+      <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">
+        제품 개발자는 <code class="inline">AT+MDATA=03,data</code>만 사용하면 되며,
+        03번이 Central인지 Peripheral인지 알 필요가 없습니다.
+      </p>
+    </div>
+
+    <h3>레거시 BoT-nLE523 호환 AT 커맨드 (구현 예정)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>커맨드</th><th>레거시 대응</th><th>동작</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">AT+MLINK=&lt;N&gt;</code></td>
+            <td>동일</td>
+            <td>총 동시 연결 수 설정 (1~8, 기본값 1)</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MLINK?</code></td>
+            <td>동일</td>
+            <td>설정된 최대 연결 수 조회</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MCONNLINK?</code></td>
+            <td>동일</td>
+            <td>현재 연결된 장치 수 조회</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MCONNINFO=&lt;idx&gt;</code></td>
+            <td>동일</td>
+            <td>특정 인덱스 장치 MAC 조회 (00=전체)</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MDATA=&lt;idx&gt;,&lt;data&gt;</code></td>
+            <td>동일</td>
+            <td>MULTIDROP(00) / NODEDROP(01~08) 데이터 전송</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MDISC=&lt;idx&gt;</code></td>
+            <td>동일</td>
+            <td>특정 장치 연결 해제 (00=전체)</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MBYPASS=&lt;enable&gt;</code></td>
+            <td>동일</td>
+            <td>Bypass 데이터 통신 모드 전환</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+MGROUP=&lt;N&gt;,&lt;name&gt;</code></td>
+            <td>동일</td>
+            <td>이름 기반 그룹 자동 연결 (향후)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §11 파일 구조 ─────────────────────────── -->
+  <section id="sec-files">
+    <h2><span class="sec-num">11</span> 파일 구조 참조</h2>
+
+    <div class="file-tree">
+<span class="dir">CW_BLE_MODULE/</span>
+├── <span class="file">CMakeLists.txt</span>
+├── <span class="file">prj.conf</span>            <span class="comment"># Kconfig 설정 (BLE 파라미터, MTU, 최대 연결 수 등)</span>
+├── <span class="file">Kconfig</span>
+├── <span class="file">Kconfig.sysbuild</span>
+├── <span class="file">CURSOR.md</span>
+├── <span class="dir">sysbuild/</span>
+│   └── <span class="file">ipc_radio.conf</span>
+└── <span class="dir">src/</span>
+    ├── <span class="file">main.c</span>             <span class="comment"># BLE 이벤트 핸들러, 초기화 시퀀스, 릴레이 연결</span>
+    ├── <span class="dir">ble/</span>
+    │   ├── <span class="file">ble_manager.c/.h</span>  <span class="comment"># 연결 생명주기 공통 관리 (connected/disconnected/security)</span>
+    │   ├── <span class="file">ble_central.c/.h</span>  <span class="comment"># Central 역할: 스캔, 자동 연결, GATT Discovery</span>
+    │   ├── <span class="file">ble_peripheral.c/.h</span><span class="comment"># Peripheral 역할: 광고</span>
+    │   ├── <span class="file">data_service.h</span>    <span class="comment"># 데이터 서비스 추상화 인터페이스 (프로파일 독립)</span>
+    │   └── <span class="file">data_service_nus.c</span><span class="comment"># NUS 구현체 (교체 가능)</span>
+    ├── <span class="dir">app/</span>
+    │   ├── <span class="file">nus_relay.c/.h</span>    <span class="comment"># 양방향 NUS 릴레이 (K_MSGQ + 스레드)</span>
+    │   ├── <span class="file">at_cmd.c/.h</span>       <span class="comment"># AT 커맨드 인터페이스 (AT+SCAN, AT+STATUS, AT+F* 등)</span>
+    │   ├── <span class="file">storage_mgr.c/.h</span>  <span class="comment"># BLE 설정 영속 저장 (ZMS settings 래퍼, 내부 RRAM)</span>
+    │   └── <span class="file">data_mgr.c/.h</span>     <span class="comment"># 사용자 데이터 관리 (LittleFS, 외부 SPI Flash)</span>
+    └── <span class="dir">hw/</span>
+        ├── <span class="file">board_ctrl.c/.h</span>   <span class="comment"># GPIO LED 제어</span>
+        └── <span class="file">uart_ctrl.c/.h</span>    <span class="comment"># Async UART 드라이버</span>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px;">
+      <table>
+        <thead>
+          <tr><th>파일</th><th>역할</th><th>BLE Central 관련</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">ble_central.c</code></td>
+            <td>Central 역할 전담</td>
+            <td>스캔, UUID 필터, 자동 연결, GATT Discovery, NUS Client 송수신</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_manager.c</code></td>
+            <td>연결 생명주기 공통</td>
+            <td>connected/disconnected/security_changed 이벤트 → 역할별 콜백 발화</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_peripheral.c</code></td>
+            <td>Peripheral 역할 전담</td>
+            <td>NUS UUID 광고 포함 → 자기 자신 스캔 매칭 이슈 연관</td>
+          </tr>
+          <tr>
+            <td><code class="inline">nus_relay.c</code></td>
+            <td>양방향 데이터 브릿지</td>
+            <td>Central 수신 데이터 → Host 전달 / Host 수신 → Central 전달</td>
+          </tr>
+          <tr>
+            <td><code class="inline">main.c</code></td>
+            <td>초기화 + 이벤트 핸들러</td>
+            <td>Central 이벤트 핸들러 등록, GATT Discovery 트리거, 재스캔 로직</td>
+          </tr>
+          <tr>
+            <td><code class="inline">at_cmd.c</code></td>
+            <td>AT 커맨드 인터페이스</td>
+            <td>AT+SCAN, AT+ADV, AT+STATUS, AT+SEND + 신규: AT+ROLE, AT+TARGETNAME</td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr.c</code></td>
+            <td>BLE 설정 영속 저장 (ZMS 래퍼)</td>
+            <td>cw/role, cw/blename, cw/target_name 저장/복원. 역할별 분기·AT+SCAN 역할 검사·blename 동적 반영에 사용</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr.c</code></td>
+            <td>사용자 데이터 관리 (LittleFS 래퍼)</td>
+            <td>외부 SPI Flash(W25Q32) 위 LittleFS 파일시스템. 파일 CRUD, 포맷, 사용량 조회. AT+F* 커맨드 백엔드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">prj.conf</code></td>
+            <td>Kconfig 설정</td>
+            <td>BT_MAX_CONN, MTU, 스캔 필터 수, 보안 설정, CONFIG_SETTINGS_ZMS 등</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §9 API 요약 ─────────────────────────── -->
+  <section id="sec-api">
+    <h2><span class="sec-num">12</span> Public API 요약</h2>
+
+    <h3>ble_central.h — Central 역할 API</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>함수</th><th>설명</th><th>호출 시점</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">ble_central_init(rx_cb)</code></td>
+            <td>NUS Client 초기화 + 스캔 서브시스템 설정</td>
+            <td><code class="inline">bt_enable()</code> + <code class="inline">settings_load()</code> 이후</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central_scan_start()</code></td>
+            <td>Active Scan 시작 (NUS UUID 필터)</td>
+            <td>부팅 시, 연결 해제 후 자동 재스캔</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central_scan_stop()</code></td>
+            <td>스캔 중지 (이미 중지 상태면 0 반환)</td>
+            <td>AT+SCAN=0 커맨드, 수동 제어</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central_gatt_discover(conn)</code></td>
+            <td>NUS 서비스 GATT Discovery 시작</td>
+            <td><code class="inline">on_central_security_established()</code> 콜백</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central_nus_send(data, len)</code></td>
+            <td>NUS Client Write (Host→Device)</td>
+            <td>H2D 릴레이 스레드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">ble_central_conn_release()</code></td>
+            <td><code class="inline">bt_conn_unref()</code> + NULL 초기화</td>
+            <td>연결 해제 / 실패 시</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>ble_manager.h — 이벤트 콜백 구조체</h3>
+    <div class="card">
+      <pre><code class="language-c">typedef struct {
+    void (*on_central_connected)(struct bt_conn *conn);        // Central 연결 성공
+    void (*on_central_connect_failed)(struct bt_conn *conn);   // Central 연결 실패
+    void (*on_central_disconnected)(struct bt_conn *conn);     // Central 연결 해제
+    void (*on_peripheral_connected)(struct bt_conn *conn);     // Peripheral 연결 성공
+    void (*on_peripheral_disconnected)(struct bt_conn *conn);  // Peripheral 연결 해제
+    void (*on_central_security_established)(struct bt_conn *conn); // 보안 협상 완료 → GATT Discovery 트리거
+    void (*on_conn_recycled)(void);                            // conn 객체 반환 완료 → Peripheral 재광고
+} ble_manager_event_cb_t;</code></pre>
+    </div>
+
+    <div class="callout callout-info" style="margin-top:16px;">
+      <strong>설계 원칙:</strong> <code class="inline">ble_manager.c</code>는 <code class="inline">ble_central</code>, <code class="inline">ble_peripheral</code>, <code class="inline">board_ctrl</code>에 직접 의존하지 않습니다.
+      역할 판별은 <code class="inline">bt_conn_get_info()</code>의 <code class="inline">info.role</code> 필드로만 수행하며, 모든 역할별 처리는 <code class="inline">ble_manager_event_cb_t</code> 콜백을 통해 <code class="inline">main.c</code>에서 위임받아 실행합니다.
+    </div>
+
+    <h3>data_service.h — 데이터 서비스 추상화 API (구현됨)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>함수</th><th>설명</th><th>호출 시점</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">data_svc_server_init(rx_cb)</code></td>
+            <td>Server 서비스 등록 (Peripheral)</td>
+            <td><code class="inline">bt_enable()</code> 이후</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_server_send(conn, data, len)</code></td>
+            <td>Server Notification 전송</td>
+            <td>Peripheral → 상대 Central 데이터 전송</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_init(ctx, rx_cb)</code></td>
+            <td>Client 인스턴스 초기화 (슬롯당 1개)</td>
+            <td><code class="inline">bt_enable()</code> 이후, 슬롯 초기화 시</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_discover(ctx, conn, cb)</code></td>
+            <td>GATT Discovery + 핸들 할당 + 구독</td>
+            <td>Central 연결 성공 후 보안 협상 완료 시</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_client_send(ctx, data, len)</code></td>
+            <td>Client Write 전송</td>
+            <td>Central → 상대 Peripheral 데이터 전송</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_svc_get_uuid()</code></td>
+            <td>스캔 필터용 서비스 UUID 반환</td>
+            <td>스캔 초기화 시 필터 등록</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>data_mgr.h — 사용자 데이터 관리 API (구현됨)</h3>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead>
+          <tr><th>함수</th><th>설명</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">data_mgr_init()</code></td>
+            <td>SPI Flash 디바이스 점검 + LittleFS 마운트 확인. 실패 시 자동 포맷 후 재마운트</td>
+            <td><code class="inline">main()</code>에서 <code class="inline">storage_mgr_init()</code> 이전 호출. 실패해도 부팅 계속</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_is_ready()</code></td>
+            <td>파일시스템 마운트 상태 반환</td>
+            <td>AT+F 커맨드 진입 시 점검용</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_write(fname, data, len)</code></td>
+            <td>파일 생성/덮어쓰기 (<code class="inline">/user/&lt;fname&gt;</code>)</td>
+            <td>AT+FWRITE= 백엔드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_read(fname, buf, sz, out_len)</code></td>
+            <td>파일 읽기. <code class="inline">-ENOENT</code> = 미존재</td>
+            <td>AT+FREAD= 백엔드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_delete(fname)</code></td>
+            <td>파일 삭제</td>
+            <td>AT+FDELETE= 백엔드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_list(cb, user)</code></td>
+            <td>파일 목록 탐색, 파일당 콜백 호출</td>
+            <td>AT+FLIST? 백엔드. 반환값 = 파일 수</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_format()</code></td>
+            <td>파일시스템 전체 포맷 + 재마운트</td>
+            <td>AT+FFORMAT 백엔드</td>
+          </tr>
+          <tr>
+            <td><code class="inline">data_mgr_get_usage(usage)</code></td>
+            <td>사용량 조회 (total/used/free bytes)</td>
+            <td>AT+FUSAGE? 백엔드</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>storage_mgr.h — 설정 저장 API (구현됨)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>함수</th><th>설명</th><th>저장 키</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">storage_mgr_init()</code></td>
+            <td>settings 핸들러 등록. <code class="inline">settings_load()</code> 이전에 호출</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_get_role()</code></td>
+            <td>저장된 역할 반환. 미저장 시 <code class="inline">ROLE_MULTI</code></td>
+            <td><code class="inline">cw/role</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_set_role(role)</code></td>
+            <td>역할 ZMS 저장 + 런타임 즉시 적용</td>
+            <td><code class="inline">cw/role</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_get_blename()</code></td>
+            <td>저장된 BLE 이름 반환</td>
+            <td><code class="inline">cw/blename</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_set_blename(name)</code></td>
+            <td>BLE 이름 ZMS 저장. 호출자(<code class="inline">at_cmd.c</code>)에서 <code class="inline">bt_set_name(name)</code> 별도 호출</td>
+            <td><code class="inline">cw/blename</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_get_target_name()</code></td>
+            <td>Central 스캔 이름 필터 반환. 빈 문자열이면 필터 미적용</td>
+            <td><code class="inline">cw/target_name</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr_set_target_name(name)</code></td>
+            <td>이름 필터 ZMS 저장</td>
+            <td><code class="inline">cw/target_name</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── §14 SPI Flash + LittleFS ─────────────────────────── -->
+  <section id="sec-spiflash">
+    <h2><span class="sec-num">14</span> 외부 SPI Flash + LittleFS (구현됨)</h2>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>구현 완료 (2026-03-21).</strong>
+      외부 SPI Flash(W25Q32JVSSIQ) 위에 LittleFS 파일시스템을 구성하고,
+      <code class="inline">data_mgr</code> 래퍼 모듈과 AT+F 커맨드 6종을 추가했습니다.
+      BLE 설정 저장(<code class="inline">storage_mgr</code>/ZMS)과 완전 독립적으로 동작합니다.
+    </div>
+
+    <!-- ── 하드웨어 스펙 ── -->
+    <h3>14.1 하드웨어 — W25Q32JVSSIQ</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>내용</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>제조사 / 모델</strong></td><td>Winbond W25Q32JVSSIQ</td></tr>
+          <tr><td><strong>JEDEC ID</strong></td><td><code class="inline">EF 40 16</code></td></tr>
+          <tr><td><strong>용량</strong></td><td>32 Mbit (4 MB)</td></tr>
+          <tr><td><strong>인터페이스</strong></td><td>SPI00 (SPIM) — nRF54L15 고속 SPI 마스터</td></tr>
+          <tr><td><strong>최대 SPI 클럭</strong></td><td>32 MHz</td></tr>
+          <tr><td><strong>Sector Erase</strong></td><td>4 KB (0x20 명령)</td></tr>
+          <tr><td><strong>Page Program</strong></td><td>256 B (0x02 명령)</td></tr>
+          <tr><td><strong>DPD 진입/복귀</strong></td><td>tDP = 3 µs / tRES1 = 8 µs</td></tr>
+          <tr>
+            <td><strong>핀 배치</strong></td>
+            <td>
+              SCK: P2.06 / MOSI: P2.02 / MISO: P2.04 / CS: P2.05<br>
+              <span style="color:var(--tag-done);">✔ MISO/MOSI 핀 회로 수정 완료 (아트웍 재진행)</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>SPI 핀 이슈 해결 (2026-03-23):</strong> 초기 PCB에서 MISO/MOSI 핀 설계 실수가 있었으나,
+      회로 수정 후 아트웍 재진행하여 문제 해결 완료. SCK(P2.06)은 문제 없음.
+    </div>
+
+    <!-- ── Devicetree 구성 ── -->
+    <h3>14.2 Devicetree 구성</h3>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">SPI Flash 노드 + 파티션 (overlay)</h3>
+    <div class="card">
+      <pre><code class="language-c">/* boards/coway_ble_module_nrf54l15_cpuapp.overlay */
+&spi00 {
+    w25q32: w25q32jvssiq@0 {
+        compatible = "jedec,spi-nor";
+        status = "okay";
+        reg = <0>;
+        spi-max-frequency = <32000000>;
+        jedec-id = [ef 40 16];
+        size = <33554432>;       /* 32 Mbit = 4 MB */
+        has-dpd;
+        t-enter-dpd = <3000>;   /* 3 µs */
+        t-exit-dpd = <8000>;    /* 8 µs */
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            user_data_partition: partition@0 {
+                label = "user_data";
+                reg = <0x00000000 0x00400000>;  /* 전체 4 MB */
+            };
+        };
+    };
+};</code></pre>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">LittleFS fstab (automount)</h3>
+    <div class="card">
+      <pre><code class="language-c">/* overlay 내 fstab 정의 */
+/ {
+    fstab {
+        compatible = "zephyr,fstab";
+        lfs_user: lfs_user {
+            compatible = "zephyr,fstab,littlefs";
+            mount-point = "/user";
+            partition = <&user_data_partition>;
+            automount;
+            read-size = <1>;        /* 바이트 단위 읽기 */
+            prog-size = <256>;      /* Page Program 단위 */
+            cache-size = <256>;     /* prog-size 이상 */
+            lookahead-size = <32>;  /* 블록 할당 비트맵 */
+            block-cycles = <512>;   /* Wear-leveling 주기 */
+        };
+    };
+};</code></pre>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);">Partition Manager 외부 플래시 지정</h3>
+    <div class="card">
+      <pre><code class="language-c">/* overlay chosen 노드에 추가 */
+chosen {
+    nordic,pm-ext-flash = &w25q32;  /* PM이 external_flash 영역으로 인식 */
+};</code></pre>
+    </div>
+
+    <!-- ── Kconfig 설정 ── -->
+    <h3>14.3 Kconfig 설정 (prj.conf)</h3>
+    <div class="card">
+      <pre><code class="language-bash"># ── External SPI Flash (W25Q32JVSSIQ) ──
+CONFIG_SPI=y
+CONFIG_SPI_NOR=y
+CONFIG_SPI_NOR_SFDP_DEVICETREE=y       # DTS의 jedec-id/size로 파라미터 결정
+
+# ── LittleFS ──
+CONFIG_FILE_SYSTEM=y
+CONFIG_FILE_SYSTEM_LITTLEFS=y
+
+# ── Partition Manager: 외부 플래시 배치 ──
+CONFIG_PM_PARTITION_REGION_LITTLEFS_EXTERNAL=y  # 내부 RRAM 아닌 외부 플래시에 배치
+CONFIG_PM_OVERRIDE_EXTERNAL_DRIVER_CHECK=y      # SPI NOR (비-QSPI) 드라이버 사용 시 필수
+
+# ── Memory ──
+CONFIG_HEAP_MEM_POOL_SIZE=2048          # LittleFS 힙 + flash buffer (기존 1024 → 2048)</code></pre>
+    </div>
+
+    <!-- ── 초기화 흐름 ── -->
+    <h3>14.4 초기화 흐름</h3>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">main() 부팅 시퀀스 (data_mgr 부분)</div>
+      <div class="storage-flow">
+        <div class="storage-node">board_ctrl_init()</div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">data_mgr_init()<br><small style="font-weight:400;color:var(--text-muted);">SPI Flash 점검<br>+ LittleFS 마운트</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">storage_mgr_init()<br><small style="font-weight:400;color:var(--text-muted);">내부 RRAM / ZMS</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">bt_enable() ...</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:14px;">
+        <strong>Non-blocking:</strong> <code class="inline">data_mgr_init()</code> 실패 시 경고만 출력하고 부팅을 계속합니다.<br>
+        SPI Flash 미응답 시에도 BLE 기능은 정상 동작하며, AT+F 커맨드만 <code class="inline">ERROR:FS_NOT_READY</code> 응답을 반환합니다.
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">data_mgr_init() 내부 로직</div>
+      <div class="storage-flow">
+        <div class="storage-node">DEVICE_DT_GET<br>(w25q32)<br><small style="font-weight:400;color:var(--text-muted);">device_is_ready()</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">fs_statvfs<br>("/user")<br><small style="font-weight:400;color:var(--text-muted);">automount 확인</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">성공 시<br><span class="badge badge-done">s_ready = true</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:14px;">
+        <strong>automount 실패 시:</strong> <code class="inline">fs_mkfs(FS_LITTLEFS)</code>로 자동 포맷 → <code class="inline">fs_mount()</code> 재시도.
+        첫 사용(공장 초기 상태)이나 파일시스템 손상 시 이 경로를 탑니다.
+      </div>
+    </div>
+
+    <!-- ── AT 커맨드 ── -->
+    <h3>14.5 AT 커맨드 — 파일시스템 (구현·검증 완료, 2026-03-24)</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>커맨드</th><th>동작</th><th>응답 예시</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">AT+FUSAGE?</code></td>
+            <td>파일시스템 사용량 조회</td>
+            <td><code class="inline">+FUSAGE: TOTAL=4096KB,USED=12KB,FREE=4084KB</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+FLIST?</code></td>
+            <td>저장 파일 목록</td>
+            <td><code class="inline">+FLIST:\r\n  sleep_001.dat (128 B)\r\n  (1 files)</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+FWRITE=&lt;name&gt;,&lt;HEX&gt;</code></td>
+            <td>파일 쓰기 (생성/덮어쓰기)</td>
+            <td><code class="inline">+FWRITE: test.dat (5 B)\r\nOK</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+FREAD=&lt;name&gt;</code></td>
+            <td>파일 읽기 (HEX 응답)</td>
+            <td><code class="inline">+FREAD: test.dat,5,48656C6C6F\r\nOK</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+FDELETE=&lt;name&gt;</code></td>
+            <td>파일 삭제</td>
+            <td><code class="inline">OK</code> / <code class="inline">ERROR:NOT_FOUND</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT+FFORMAT</code></td>
+            <td>파일시스템 전체 포맷</td>
+            <td><code class="inline">+FFORMAT: DONE\r\nOK</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn" style="margin-bottom:20px;">
+      <strong>파일 경로 규칙:</strong> 파일 이름만 전달 (예: <code class="inline">sleep_001.dat</code>).
+      내부에서 <code class="inline">/user/</code> 접두어를 자동 부착합니다.
+      디렉토리 중첩(<code class="inline">/</code>, <code class="inline">\</code>)은 <strong>허용하지 않습니다</strong> (플래시 수명 + 단순성 고려).
+      파일 이름 최대 길이: 31자 (<code class="inline">DATA_MGR_FNAME_MAX_LEN=32</code>, NUL 포함).
+    </div>
+
+    <!-- ── DK vs COWAY 보드 차이 ── -->
+    <h3>14.6 보드별 SPI Flash 구성</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>COWAY 보드</th><th>nRF54L15 DK</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>플래시 IC</strong></td>
+            <td>W25Q32JVSSIQ (4 MB)</td>
+            <td>MX25R6435F (8 MB)</td>
+          </tr>
+          <tr>
+            <td><strong>DT 노드라벨</strong></td>
+            <td><code class="inline">w25q32</code></td>
+            <td><code class="inline">mx25r64</code></td>
+          </tr>
+          <tr>
+            <td><strong>PM ext-flash</strong></td>
+            <td><code class="inline">nordic,pm-ext-flash = &w25q32</code></td>
+            <td><code class="inline">nordic,pm-ext-flash = &mx25r64</code></td>
+          </tr>
+          <tr>
+            <td><strong>user_data 파티션</strong></td>
+            <td>4 MB (0x400000)</td>
+            <td>4 MB (0x400000, 전체 8 MB 중 절반)</td>
+          </tr>
+          <tr>
+            <td><strong>SCK 핀</strong></td>
+            <td>P2.06</td>
+            <td>P2.01 (전용)</td>
+          </tr>
+          <tr>
+            <td><strong>현재 상태</strong></td>
+            <td><span class="badge badge-done">회로 수정 완료</span></td>
+            <td><span class="badge badge-done">테스트 가능</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 설계 결정 ── -->
+    <h3>14.7 설계 결정 사항</h3>
+
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>결정</th><th>선택</th><th>이유</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>파일시스템</strong></td>
+            <td>LittleFS</td>
+            <td>NOR Flash 최적화, power-loss resilience (COW 저널링), wear leveling 내장</td>
+          </tr>
+          <tr>
+            <td><strong>마운트 방식</strong></td>
+            <td>fstab automount</td>
+            <td>DTS 선언만으로 부팅 시 자동 마운트. <code class="inline">data_mgr_init()</code>에서 상태 확인만 수행</td>
+          </tr>
+          <tr>
+            <td><strong>파티션 크기</strong></td>
+            <td>전체 4 MB</td>
+            <td>현재 OTA 이미지 슬롯 불필요. 향후 필요 시 파티션 분할 가능</td>
+          </tr>
+          <tr>
+            <td><strong>SFDP 모드</strong></td>
+            <td>SFDP_DEVICETREE</td>
+            <td>DTS의 jedec-id/size로 결정. 런타임 SFDP 쿼리 불필요 (SPI 초기화 전 쿼리 불가능한 환경 대비)</td>
+          </tr>
+          <tr>
+            <td><strong>디렉토리 구조</strong></td>
+            <td>플랫 (단일 <code class="inline">/user/</code>)</td>
+            <td>디렉토리 중첩은 LittleFS 메타데이터 오버헤드 증가. 파일 이름으로 구분 충분</td>
+          </tr>
+          <tr>
+            <td><strong>초기화 실패 정책</strong></td>
+            <td>Non-blocking (부팅 계속)</td>
+            <td>BLE 기능이 핵심. SPI Flash 없어도 동작해야 함 (ONE-firmware 정책)</td>
+          </tr>
+          <tr>
+            <td><strong>첫 사용 시 포맷</strong></td>
+            <td>자동</td>
+            <td>automount 실패 → <code class="inline">fs_mkfs()</code> 자동 수행. 공장 초기 상태 대응</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 검증 상태 ── -->
+    <h3>14.8 검증 상태</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>상태</th><th>일자</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AT+FUSAGE?, AT+FLIST?, AT+FWRITE=, AT+FREAD=, AT+FDELETE=, AT+FFORMAT</td>
+            <td><span class="badge badge-done">검증 완료</span></td>
+            <td>2026-03-24</td>
+            <td>DK 보드 기능 테스트 통과</td>
+          </tr>
+          <tr>
+            <td>전원 차단 후 데이터 유지 (LittleFS 내결함성)</td>
+            <td><span class="badge badge-done">확인 완료</span></td>
+            <td>2026-03-24</td>
+            <td>전원 차단 → 재부팅 후 파일 정상 유지</td>
+          </tr>
+          <tr>
+            <td>COWAY 보드 SPI Flash 동작</td>
+            <td><span class="badge badge-done">해결 완료</span></td>
+            <td>2026-03-23</td>
+            <td>MOSI/MISO 교차 배선 아트워크 수정</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ─────────────────────────── §15 시리얼메모리 파일시스템 정책 ─────────────────────────── -->
+  <section id="sec-serialmem-policy">
+    <h2><span class="sec-num">15</span> 시리얼메모리 파일시스템 정책 (확정 2026-03-23)</h2>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>정책 확정 (2026-03-23).</strong>
+      BLE 제품의 오프라인 데이터 축적 → 연결 시 벌크 전송 시나리오에 대한
+      파일시스템 구조, 저장 포맷, 용량 한도, Overflow 정책을 확정했습니다.
+      상세 비교 분석은 <code class="inline">docs/시리얼메모리_파일시스템_정책_비교.md</code> 참조.
+    </div>
+
+    <!-- ── 데이터 API 정의 ── -->
+    <h3>15.1 데이터 API 정의</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>API</th><th>용도</th><th>발생 조건</th><th>빈도 예시 (비데)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A1010</strong></td>
+            <td>상태</td>
+            <td>사용자 조작, 내부 부하 이벤트</td>
+            <td>불규칙, ~100~200회/일</td>
+          </tr>
+          <tr>
+            <td><strong>A1020</strong></td>
+            <td>센서</td>
+            <td>주기 수집</td>
+            <td>24시간/1회</td>
+          </tr>
+          <tr>
+            <td><strong>A1030</strong></td>
+            <td>에러</td>
+            <td>에러 발생 시</td>
+            <td>드묾, 0~수 회/일</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+      <strong>참고:</strong> API 명칭(A1010/A1020/A1030)은 APP/서버 유관부서와 통일된 명칭입니다.
+      Legacy 비데 제품에서는 최대 9,000 row 저장, overflow 시 오래된 데이터부터 제거하는 방식이었습니다.
+    </div>
+
+    <!-- ── 채택 방식 ── -->
+    <h3>15.2 채택 방식: 청크 파일 (Chunk 기반)</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>방식1 (Append)</th><th>방식2 (Chunk) — 채택</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>장기 운용 복잡도</td><td>높음 (compaction 필수)</td><td><strong>낮음</strong></td></tr>
+          <tr><td>공간 회수</td><td>어려움 (파일 재작성)</td><td><strong>fs_unlink 한 번</strong></td></tr>
+          <tr><td>Flash 수명</td><td>불리 (이중 write)</td><td><strong>유리</strong></td></tr>
+          <tr><td>전원 안전성</td><td>취약 (compaction 중 유실)</td><td><strong>강함</strong></td></tr>
+          <tr><td>동시 읽기/쓰기</td><td>충돌 관리 필요</td><td><strong>자연 분리</strong></td></tr>
+          <tr><td>전송 상태 관리</td><td>offset 포인터 필요</td><td><strong>파일 존재 = 미전송</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+      <strong>채택 근거:</strong> 장기 오프라인 축적 → BLE 연결 시 벌크 전송이 핵심인 양산 BLE 제품 특성상,
+      운용 안정성·전원 안전성·Flash 수명에서 모두 우위인 청크 방식을 채택.
+    </div>
+
+    <!-- ── 저장 포맷 ── -->
+    <h3>15.3 저장 포맷: Protobuf 바이너리</h3>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">데이터 흐름</div>
+      <div class="storage-flow">
+        <div class="storage-node">MCU (HOST)<br><small style="font-weight:400;color:var(--text-muted);">AT커맨드 전송</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">BLE 모듈<br><small style="font-weight:400;color:var(--text-muted);">파싱 → protobuf 직렬화</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">SPI Flash<br><small style="font-weight:400;color:var(--text-muted);">protobuf 바이너리 저장</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">APP<br><small style="font-weight:400;color:var(--text-muted);">protobuf 그대로 수신<br>(변환 비용 제로)</small></div>
+      </div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>AT 문자열 저장</th><th>바이너리 구조체</th><th>Protobuf 저장 — 채택</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>저장 시 처리</td><td>없음</td><td>파싱</td><td>파싱 + 직렬화</td></tr>
+          <tr><td><strong>전송 시 처리</strong></td><td>파싱 + 직렬화</td><td>직렬화</td><td><strong>없음 (read → send)</strong></td></tr>
+          <tr><td>공간 효율</td><td>2~3배 낭비</td><td>최소</td><td><strong>최소</strong></td></tr>
+          <tr><td>버전 호환성</td><td>유연</td><td>구조체 변경 시 깨짐</td><td><strong>하위 호환 내장</strong></td></tr>
+          <tr><td>APP 포맷 일치</td><td>변환 필요</td><td>변환 필요</td><td><strong>동일</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+      <strong>채택 근거:</strong> BLE 연결 시간은 제한적이며 축적 데이터를 최대한 빨리 전송해야 한다.
+      저장 시 직렬화 비용을 미리 지불하고, 전송 시에는 read → send만 수행. 이벤트당 100~200B (protobuf 기준).
+    </div>
+
+    <!-- ── 파일 구조 ── -->
+    <h3>15.4 파일 구조</h3>
+    <div class="card">
+      <pre><code class="language-bash">/user/
+├── A1010_0001.dat ~ A1010_XXXX.dat    # 상태 청크
+├── A1020_0001.dat ~ A1020_XXXX.dat    # 센서 청크
+├── A1030_0001.dat ~ A1030_XXXX.dat    # 에러 청크
+└── tx_state.dat                        # 전송 상태 (부분 전송 이어받기)</code></pre>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--text-muted);margin-top:20px;">청크 내부 구조</h3>
+    <div class="card">
+      <pre><code class="language-c">/* Chunk Header — 8 bytes */
+struct chunk_header {
+    uint16_t magic;          /* 0xCW01 */
+    uint8_t  type;           /* 10=A1010, 20=A1020, 30=A1030 */
+    uint8_t  version;        /* 1 */
+    uint16_t record_count;
+    uint16_t reserved;
+};
+
+/* Record — 가변 길이 */
+struct chunk_record {
+    uint32_t timestamp;      /* UNIX timestamp */
+    uint16_t length;         /* payload 길이 */
+    uint8_t  payload[];      /* protobuf 직렬화 데이터 */
+};</code></pre>
+    </div>
+
+    <!-- ── 청크 파라미터 ── -->
+    <h3>15.5 청크 파라미터</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>값</th><th>근거</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>청크 크기</strong></td>
+            <td>32 KB</td>
+            <td>레코드 200B 기준 ~159개/청크. 9,000 row 수용 시 ~57개 파일로 적정</td>
+          </tr>
+          <tr>
+            <td><strong>레코드 크기</strong></td>
+            <td>~206 B</td>
+            <td>ts(4B) + len(2B) + payload(~200B)</td>
+          </tr>
+          <tr>
+            <td><strong>레코드/청크</strong></td>
+            <td>~159개</td>
+            <td>(32768 − 8) / 206</td>
+          </tr>
+          <tr>
+            <td><strong>BLE 전송</strong></td>
+            <td>~135 패킷/청크</td>
+            <td>32KB / MTU 244B</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 용량 한도 ── -->
+    <h3>15.6 용량 한도: API별 독립 관리</h3>
+    <div class="callout callout-warn" style="margin-bottom:20px;">
+      <strong>핵심 원칙:</strong> API별 독립 용량 한도 적용.
+      발생 빈도가 높은 A1010이 A1020/A1030 데이터를 밀어내는 문제를 원천 방지.
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">Overflow 동작</div>
+      <div class="card">
+        <pre><code class="language-c">/* A1010 쓰기 시 */
+if (get_api_usage(API_A1010) > config->a1010_max_bytes) {
+    delete_oldest_chunk(API_A1010);  /* A1010 가장 오래된 청크만 삭제 */
+    /* A1020, A1030은 영향 없음 */
+}</code></pre>
+      </div>
+    </div>
+
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">
+      <strong>총 한도:</strong> 2 MB (4 MB의 50%, 나머지는 시스템 예비).
+      API별 할당 비율은 제품(product code)에 따라 런타임 결정.
+    </div>
+
+    <!-- ── ONE-firmware 설정 테이블 ── -->
+    <h3>15.7 ONE-firmware: 제품별 설정 테이블</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      단일 펌웨어로 모든 제품을 지원. HOST가 AT커맨드로 전달한 product code를 ZMS(RRAM)에 저장하고,
+      런타임에 해당 제품의 메모리 정책을 적용한다.
+    </div>
+    <div class="card">
+      <pre><code class="language-c">typedef struct {
+    uint16_t product_code;
+    uint32_t a1010_max_bytes;   /* A1010 할당 용량 */
+    uint32_t a1020_max_bytes;   /* A1020 할당 용량 */
+    uint32_t a1030_max_bytes;   /* A1030 할당 용량 */
+    uint16_t chunk_size;        /* 청크 크기 (bytes) */
+} product_storage_config_t;
+
+static const product_storage_config_t s_product_table[] = {
+    /* 비데 */
+    { .product_code   = 0x0101,
+      .a1010_max_bytes = 1536 * 1024,   /* 1.5 MB */
+      .a1020_max_bytes =  256 * 1024,   /* 256 KB */
+      .a1030_max_bytes =  256 * 1024,   /* 256 KB */
+      .chunk_size      =   32 * 1024 }, /* 32 KB  */
+
+    /* default: product code 미등록 시 */
+    { .product_code   = 0x0000,
+      .a1010_max_bytes =  768 * 1024,
+      .a1020_max_bytes =  256 * 1024,
+      .a1030_max_bytes =  256 * 1024,
+      .chunk_size      =   32 * 1024 },
+};</code></pre>
+    </div>
+
+    <!-- ── 용량 시산 ── -->
+    <h3>15.8 용량 시산 (비데, 30일 최악 케이스)</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>API</th><th>일 발생량</th><th>30일 레코드</th><th>30일 용량</th><th>청크 수</th><th>한도</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A1010</td><td>~200회</td><td>~6,000</td><td>~1.2 MB</td><td>~38개</td><td>1.5 MB</td>
+          </tr>
+          <tr>
+            <td>A1020</td><td>1회</td><td>30</td><td>~6 KB</td><td>1개</td><td>256 KB</td>
+          </tr>
+          <tr>
+            <td>A1030</td><td>~5회</td><td>~150</td><td>~30 KB</td><td>1개</td><td>256 KB</td>
+          </tr>
+          <tr style="font-weight:700;">
+            <td>합계</td><td></td><td>~6,180</td><td>~1.24 MB</td><td>~40개</td><td>2 MB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 전송 상태 관리 ── -->
+    <h3>15.9 전송 상태 관리: tx_state.dat</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      32KB 청크 = MTU 244B 기준 ~135 패킷. BLE 연결 중 끊김에 대비하여 레코드 단위 부분 전송 이어받기를 지원.
+    </div>
+    <div class="card">
+      <pre><code class="language-c">typedef struct {
+    char     current_file[32];   /* 현재 전송 중인 청크 파일명 */
+    uint16_t sent_records;       /* 이 청크에서 전송 완료된 레코드 수 */
+} tx_state_t;</code></pre>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:16px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:14px;">전송 흐름</div>
+      <div class="storage-flow">
+        <div class="storage-node">BLE 연결<br><small style="font-weight:400;color:var(--text-muted);">tx_state.dat 읽기</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">미전송 청크<br>순서대로 읽기<br><small style="font-weight:400;color:var(--text-muted);">이전 위치부터 이어서</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">protobuf<br>NUS 전송<br><small style="font-weight:400;color:var(--text-muted);">레코드 단위 ACK</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">청크 완료<br><small style="font-weight:400;color:var(--text-muted);">fs_unlink() → 공간 회수<br>tx_state 갱신</small></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:14px;">
+        <strong>연결 끊김 시:</strong> tx_state.dat에 현재 위치가 저장되어 있으므로 다음 연결 시 이어서 전송.
+        최악 케이스: 마지막 ACK 이후 레코드 중복 전송 (유실 없음).
+      </div>
+    </div>
+
+    <!-- ── 런타임 초기화 흐름 ── -->
+    <h3>15.10 런타임 초기화 흐름</h3>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+      <div class="storage-flow">
+        <div class="storage-node">부팅<br><small style="font-weight:400;color:var(--text-muted);">ZMS에서<br>product code 읽기</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">설정 테이블 조회<br><small style="font-weight:400;color:var(--text-muted);">product_storage_config_t</small></div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node">LittleFS<br>마운트</div>
+        <div class="storage-arrow">→</div>
+        <div class="storage-node" style="border-color:#10b981;background:rgba(16,185,129,0.08);">chunk_mgr_init()<br><small style="font-weight:400;color:var(--text-muted);">제품별 설정 적용<br>기존 청크 스캔/복원</small></div>
+      </div>
+    </div>
+
+    <!-- ── 전원 안전성 ── -->
+    <h3>15.11 전원 안전성</h3>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead>
+          <tr><th>전원 차단 시점</th><th>결과</th><th>데이터 손실</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>레코드 append 중</td>
+            <td>마지막 레코드만 불완전, header의 record_count로 감지</td>
+            <td>최대 1개 레코드</td>
+          </tr>
+          <tr>
+            <td>새 청크 생성 중</td>
+            <td>빈/불완전 파일 → 부팅 시 감지 후 삭제</td>
+            <td>없음</td>
+          </tr>
+          <tr>
+            <td>전송 후 삭제 중</td>
+            <td>일부 청크만 삭제 → 다음 연결 시 재전송</td>
+            <td>없음 (중복 전송)</td>
+          </tr>
+          <tr>
+            <td>tx_state.dat 갱신 중</td>
+            <td>LittleFS COW로 이전/새 값 중 하나 보장</td>
+            <td>없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ─────────────────────────── §16 스레드 및 동기화 ─────────────────────────── -->
+  <section id="sec-threads">
+    <h2><span class="sec-num">16</span> 스레드 및 동기화 구조</h2>
+
+    <p style="margin-bottom:20px;color:var(--text-muted);font-size:14px;">
+      CW_BLE_MODULE의 전체 스레드 구성과 동기화 프리미티브를 정리한다.
+      스레드 간 데이터 전달 경로와 경합 지점을 명시하여, 향후 기능 추가 시 동시성 설계의 기준으로 활용한다.
+    </p>
+
+    <!-- 16-1. 스레드 목록 -->
+    <h3>16-1. 스레드 목록</h3>
+    <div class="card">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:40px;">#</th>
+            <th style="width:180px;">스레드</th>
+            <th style="width:160px;">소스</th>
+            <th style="width:70px;">스택</th>
+            <th style="width:60px;">우선순위</th>
+            <th>역할</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><code class="inline">main</code></td>
+            <td>main.c</td>
+            <td>2048B</td>
+            <td>0</td>
+            <td>초기화 시퀀스 실행 (BT enable, 스토리지, data_mgr, chunk_mgr). 초기화 완료 후 유휴 상태.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><code class="inline">at_cmd_thread</code></td>
+            <td>at_cmd.c:1317</td>
+            <td>2048B</td>
+            <td>5</td>
+            <td>UART RX 세마포어 대기 → AT 커맨드 파싱 및 실행. chunk_mgr·data_mgr 파일 I/O를 포함하는 <strong>가장 깊은 콜스택</strong> 보유.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><code class="inline">relay_d2h_thread</code></td>
+            <td>nus_relay.c:100</td>
+            <td>1024B</td>
+            <td>7</td>
+            <td>Device → Host 방향 NUS 릴레이. s_d2h_queue에서 패킷을 꺼내 bt_nus_send()로 스마트폰에 전달.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><code class="inline">relay_h2d_thread</code></td>
+            <td>nus_relay.c:150</td>
+            <td>1024B</td>
+            <td>7</td>
+            <td>Host → Device 방향 NUS 릴레이. s_h2d_queue에서 패킷을 꺼내 bt_nus_client_send()로 외부 디바이스에 전달.</td>
+          </tr>
+          <tr style="color:var(--text-muted);">
+            <td>5</td>
+            <td><code class="inline">System Workqueue</code></td>
+            <td>Zephyr 커널 내부</td>
+            <td>1024B</td>
+            <td>-1 (coop)</td>
+            <td>adv_work(Advertising 시작), s_scan_work(백오프 재스캔) 등 지연 작업 실행.</td>
+          </tr>
+          <tr style="color:var(--text-muted);">
+            <td>6</td>
+            <td><code class="inline">BT RX thread</code></td>
+            <td>Zephyr BLE 스택 내부</td>
+            <td>~1200B</td>
+            <td>-8 (coop)</td>
+            <td>BLE HCI 이벤트 수신 및 콜백 dispatch (connected, disconnected, data received 등).</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+        ※ #5, #6은 Zephyr 커널/BLE 스택이 내부적으로 생성하는 스레드이다. 회색 표시.<br>
+        ※ 우선순위 숫자가 <strong>작을수록 높은 우선순위</strong>. 음수는 cooperative 스레드 (선점 불가).
+      </div>
+    </div>
+
+    <!-- 16-2. 동기화 프리미티브 -->
+    <h3>16-2. 동기화 프리미티브</h3>
+    <div class="card">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:160px;">이름</th>
+            <th style="width:130px;">타입</th>
+            <th style="width:160px;">소스</th>
+            <th style="width:180px;">생산자(Give/Put)</th>
+            <th style="width:180px;">소비자(Take/Get)</th>
+            <th>용도</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">s_rx_sem</code></td>
+            <td>K_SEM(0, 1)</td>
+            <td>at_cmd.c:68</td>
+            <td>uart_event_cb() <span class="tag" style="background:var(--tag-urgent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">ISR</span></td>
+            <td>at_cmd_thread</td>
+            <td>UART 수신 데이터 도착 알림. ISR → 스레드 깨우기.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_tx_mutex</code></td>
+            <td>k_mutex</td>
+            <td>uart_ctrl.c:65</td>
+            <td colspan="2" style="text-align:center;">at_cmd_thread, BT RX thread, relay 스레드 (다중 호출자)</td>
+            <td>UART TX 직렬화. uart_poll_out() 루프 중 다른 스레드의 TX 끼어들기 방지.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_d2h_queue</code></td>
+            <td>K_MSGQ(244B × 32)</td>
+            <td>nus_relay.c:48</td>
+            <td>BLE Central RX 콜백</td>
+            <td>relay_d2h_thread</td>
+            <td>Device → Host 패킷 전달. K_NO_WAIT put, K_FOREVER get.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_h2d_queue</code></td>
+            <td>K_MSGQ(244B × 32)</td>
+            <td>nus_relay.c:106</td>
+            <td>BLE Peripheral RX 콜백</td>
+            <td>relay_h2d_thread</td>
+            <td>Host → Device 패킷 전달. K_NO_WAIT put, K_FOREVER get.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_rx_ring_buf</code></td>
+            <td>ring_buf(512B)</td>
+            <td>uart_ctrl.c:46</td>
+            <td>uart_event_cb() <span class="tag" style="background:var(--tag-urgent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">ISR</span></td>
+            <td>at_cmd_thread</td>
+            <td>UART RX 바이트 스트림 버퍼링. DMA 더블버퍼 → 링버퍼 → 스레드 읽기.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">adv_work</code></td>
+            <td>k_work</td>
+            <td>ble_peripheral.c:42</td>
+            <td>BLE 연결/해제 콜백</td>
+            <td>System Workqueue</td>
+            <td>비동기 Advertising 시작. BLE 콜백 컨텍스트에서 직접 adv_start 불가 시 사용.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_scan_work</code></td>
+            <td>k_work_delayable</td>
+            <td>ble_central.c:356</td>
+            <td>연결 실패/해제 핸들러</td>
+            <td>System Workqueue</td>
+            <td>백오프 지연(1s~60s) 후 재스캔 시작. SCAN_POLICY_BACKOFF 시 활성.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 16-3. 스레드 간 통신 흐름도 -->
+    <h3>16-3. 스레드 간 통신 흐름도</h3>
+    <div class="card">
+      <pre style="font-size:12px;line-height:1.6;overflow-x:auto;background:var(--code-bg);color:#e2e8f0;padding:20px;border-radius:8px;margin:0;">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ISR 컨텍스트                                      │
+│                                                                             │
+│  uart_event_cb()                                                            │
+│       ├── UART_RX_RDY ──[ring_buf_put]──→ s_rx_ring_buf ─────────┐         │
+│       └── ──────────────[k_sem_give]────→ s_rx_sem ──────────┐   │         │
+│                                                               │   │         │
+├───────────────────────────────────────────────────────────────┼───┼─────────┤
+│                        스레드 컨텍스트                         │   │         │
+│                                                               ▼   ▼         │
+│  at_cmd_thread (우선순위 5)                                                  │
+│       ├── k_sem_take(s_rx_sem) ← 대기                                       │
+│       ├── uart_ctrl_read(s_rx_ring_buf) ← 바이트 읽기                        │
+│       ├── AT 커맨드 파싱 → dispatch                                          │
+│       │     ├── AT+SEND/MDATA ─→ conn_slot_send() ─→ BLE TX                │
+│       │     ├── AT+DSTORE ────→ chunk_mgr_store() ─→ data_mgr (파일 I/O)   │
+│       │     └── AT 응답 출력 ──→ uart_ctrl_send() ─→ s_tx_mutex ──→ UART TX │
+│       └── at_cmd_send_event() ─→ uart_ctrl_send() ─→ s_tx_mutex            │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                             │
+│  BT RX thread (우선순위 -8, cooperative)                                     │
+│       ├── Central 데이터 수신 ─[nus_relay_from_device]─→ s_d2h_queue (put)  │
+│       ├── Peripheral 데이터 수신 ─[nus_relay_from_host]─→ s_h2d_queue (put) │
+│       ├── connected/disconnected ─→ main.c 콜백                             │
+│       │     ├── +CONNnn/+DISCnn ─→ uart_ctrl_send() ─→ s_tx_mutex          │
+│       │     └── re-advertise ────→ k_work_submit(adv_work)                  │
+│       └── 연결 실패/해제 ─→ k_work_schedule(s_scan_work, 백오프)             │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                             │
+│  relay_d2h_thread (우선순위 7)                                               │
+│       └── k_msgq_get(s_d2h_queue) → bt_nus_send() → 스마트폰               │
+│                                                                             │
+│  relay_h2d_thread (우선순위 7)                                               │
+│       └── k_msgq_get(s_h2d_queue) → bt_nus_client_send() → 외부 디바이스    │
+│                                                                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                                                                             │
+│  System Workqueue (우선순위 -1, cooperative)                                  │
+│       ├── adv_work ──────→ bt_le_adv_start()   (Advertising 시작)           │
+│       └── s_scan_work ───→ bt_scan_start()      (백오프 재스캔)              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘</pre>
+    </div>
+
+    <!-- 16-4. 경합 지점 분석 -->
+    <h3>16-4. 경합 지점 분석</h3>
+    <div class="card">
+      <p style="margin-bottom:16px;">
+        다중 스레드가 동시에 접근할 수 있는 공유 자원은 아래와 같다.
+        현재 <strong>s_tx_mutex가 유일한 명시적 경합 지점</strong>이며, 나머지 모듈은 단일 스레드 접근 원칙으로 설계되어 있다.
+      </p>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:160px;">공유 자원</th>
+            <th style="width:200px;">접근 스레드</th>
+            <th style="width:140px;">보호 메커니즘</th>
+            <th>비고</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">UART TX</code></td>
+            <td>at_cmd_thread, BT RX thread, relay_d2h, relay_h2d</td>
+            <td><code class="inline">s_tx_mutex</code></td>
+            <td>AT 응답, +CONNnn/+DISCnn 이벤트, +DATAnn 알림이 모두 UART TX를 사용. 뮤텍스로 직렬화.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">s_rx_ring_buf</code></td>
+            <td>ISR (write), at_cmd_thread (read)</td>
+            <td>ring_buf 내부 atomic</td>
+            <td>Zephyr ring_buf은 단일 생산자-단일 소비자 패턴에서 lock-free 안전.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">chunk_mgr / data_mgr</code></td>
+            <td>at_cmd_thread <strong>단독</strong></td>
+            <td>단일 스레드 접근</td>
+            <td>파일 I/O는 at_cmd_thread에서만 호출. 별도 뮤텍스 불필요. <strong>향후 다른 스레드에서 호출 시 반드시 보호 추가 필요.</strong></td>
+          </tr>
+          <tr>
+            <td><code class="inline">storage_mgr</code></td>
+            <td>main (init), at_cmd_thread (set/get)</td>
+            <td>단일 스레드 접근</td>
+            <td>init은 main 종료 후 at_cmd_thread만 사용. 시간적 분리로 안전.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">conn_slot[]</code></td>
+            <td>BT RX thread (alloc/free), at_cmd_thread (조회/send)</td>
+            <td>BLE 스택 내부 보호</td>
+            <td>conn_slot 변경은 BLE 콜백에서만 발생. AT 커맨드의 조회/전송은 conn 참조가 유효한 동안만 수행.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 16-5. 개발 시 주의사항 -->
+    <h3>16-5. 개발 시 주의사항</h3>
+    <div class="card">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:40px;">#</th>
+            <th style="width:240px;">규칙</th>
+            <th>설명</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>파일 I/O는 at_cmd_thread에서만</strong></td>
+            <td>chunk_mgr, data_mgr API는 현재 단일 스레드 접근을 전제로 뮤텍스가 없다.
+                다른 스레드에서 호출해야 할 경우 반드시 뮤텍스를 추가하거나, K_MSGQ로 at_cmd_thread에 작업을 위임할 것.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>UART TX는 반드시 uart_ctrl_send() 경유</strong></td>
+            <td>s_tx_mutex가 직렬화를 보장한다. uart_poll_out()을 직접 호출하면 출력이 뒤섞일 수 있다.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>BLE 콜백에서 blocking 금지</strong></td>
+            <td>BT RX thread는 cooperative(-8)이므로 blocking 호출 시 전체 BLE 스택이 멈춘다.
+                긴 작업은 k_work_submit()으로 System Workqueue에 위임하거나, K_MSGQ로 다른 스레드에 전달할 것.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><strong>새 스레드 추가 시 스택 기준 준수</strong></td>
+            <td>파일 I/O 없음: 768~1024B. 파일 I/O 있음: 2048B 이상.
+                상세 가이드: <code class="inline">docs/스택_깊이_관리_가이드.md</code> 참조.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><strong>K_MSGQ 큐 오버플로 정책 확인</strong></td>
+            <td>현재 relay 큐는 K_NO_WAIT + 드롭 정책이다. 큐 크기(32)를 변경하거나 새 큐를 추가할 때
+                RAM 영향(패킷크기 × 슬롯수)을 §13 RAM 분석 기준으로 검증할 것.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ─────────────────────────── §13 RAM 사용량 분석 ─────────────────────────── -->
+  <section id="sec-ram">
+    <h2><span class="sec-num">13</span> RAM 사용량 분석 (2026-03-20)</h2>
+
+    <div class="callout callout-info" style="margin-bottom:20px;">
+      <strong>측정 기준:</strong> nRF54L15 SRAM 할당 112 KB, 빌드 시 정적 할당량 기준 <strong>69.73%</strong> 사용 중.<br>
+      빌드 결과의 사용량은 <strong>정적 메모리(전역변수, 스레드 스택 예약, 큐 버퍼 등)</strong>이며,
+      런타임 동적 사용(BLE 동시 연결, GATT Discovery 등)은 별도로 증가합니다.<br>
+      <strong>권장 마진:</strong> 정적 할당 75~80% 이하 유지. 런타임 확인은 <code class="inline">CONFIG_THREAD_ANALYZER=y</code>로 실측 가능.
+    </div>
+
+    <h3>RAM 섹션 요약</h3>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead>
+          <tr><th>섹션</th><th>크기</th><th>설명</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>noinit</strong></td>
+            <td>41.5 KB</td>
+            <td>스레드 스택 (커널/앱), BLE 컨트롤러 메모리 — 초기화 없이 예약</td>
+          </tr>
+          <tr>
+            <td><strong>bss</strong></td>
+            <td>32.3 KB</td>
+            <td>0으로 초기화되는 전역/정적 변수 (큐 버퍼, BLE 풀, 연결 구조체 등)</td>
+          </tr>
+          <tr>
+            <td><strong>datas</strong></td>
+            <td>3.4 KB</td>
+            <td>초기값이 있는 전역/정적 변수</td>
+          </tr>
+          <tr>
+            <td><strong>기타</strong></td>
+            <td>0.9 KB</td>
+            <td>device_states, log, kernel objects 등</td>
+          </tr>
+          <tr style="font-weight:700;">
+            <td><strong>합계</strong></td>
+            <td>~78.1 KB / 112 KB</td>
+            <td>69.73% 사용</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>상위 RAM 소비자 (심볼별)</h3>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead>
+          <tr><th>크기</th><th>심볼</th><th>소속</th><th>설명</th><th>최적화</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>9.0 KB</strong></td>
+            <td><code class="inline">sdc_mempool</code></td>
+            <td>SoftDevice Controller</td>
+            <td>BLE 컨트롤러 내부 메모리풀. CONFIG_BT_MAX_CONN(8)에 비례</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>7.7 KB</strong></td>
+            <td><code class="inline">_k_fifo_buf_s_h2d_queue</code></td>
+            <td>nus_relay.c</td>
+            <td>Host→Device 릴레이 큐 (32슬롯 × 246B)</td>
+            <td><span class="badge badge-urgent">축소 가능</span></td>
+          </tr>
+          <tr>
+            <td><strong>7.7 KB</strong></td>
+            <td><code class="inline">_k_fifo_buf_s_d2h_queue</code></td>
+            <td>nus_relay.c</td>
+            <td>Device→Host 릴레이 큐 (32슬롯 × 246B)</td>
+            <td><span class="badge badge-urgent">축소 가능</span></td>
+          </tr>
+          <tr>
+            <td><strong>3.0 KB</strong></td>
+            <td><code class="inline">bt_smp_pool</code></td>
+            <td>Zephyr BLE SMP</td>
+            <td>BLE 보안(페어링) 컨텍스트 풀. CONFIG_BT_MAX_CONN에 비례</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.5 KB</strong></td>
+            <td><code class="inline">net_buf_data_hci_rx_pool</code></td>
+            <td>Zephyr BLE HCI</td>
+            <td>HCI RX 데이터 버퍼</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.1 KB</strong></td>
+            <td><code class="inline">rx_thread_stack</code></td>
+            <td>Zephyr BLE</td>
+            <td>BLE RX 스레드 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.0 KB</strong></td>
+            <td><code class="inline">bt_lw_stack_area</code></td>
+            <td>Zephyr BLE</td>
+            <td>BLE 내부 스택 영역</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.0 KB</strong></td>
+            <td><code class="inline">z_interrupt_stacks</code></td>
+            <td>Zephyr Kernel</td>
+            <td>인터럽트 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.0 KB</strong></td>
+            <td><code class="inline">sys_work_q_stack</code></td>
+            <td>Zephyr Kernel</td>
+            <td>시스템 워크큐 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.0 KB</strong></td>
+            <td><code class="inline">logging_stack</code></td>
+            <td>Zephyr LOG</td>
+            <td>로깅 스레드 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>2.0 KB</strong></td>
+            <td><code class="inline">buf32</code></td>
+            <td>Zephyr BLE</td>
+            <td>32-byte 버퍼 풀</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.6 KB</strong></td>
+            <td><code class="inline">acl_conns</code></td>
+            <td>Zephyr BLE</td>
+            <td>ACL 연결 구조체 (CONFIG_BT_MAX_CONN × 크기)</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.5 KB</strong></td>
+            <td><code class="inline">at_cmd_thread_stack</code></td>
+            <td>at_cmd.c</td>
+            <td>AT 커맨드 처리 스레드 스택</td>
+            <td><span class="badge badge-pending">적정</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.4 KB</strong></td>
+            <td><code class="inline">_k_mem_slab_buf_chan_slab</code></td>
+            <td>Zephyr BLE</td>
+            <td>BLE 채널 메모리 슬랩</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.3 KB</strong></td>
+            <td><code class="inline">bt_gatt_dm_wq_stack_area</code></td>
+            <td>Zephyr GATT DM</td>
+            <td>GATT Discovery Manager 워크큐 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.0 KB ×2</strong></td>
+            <td><code class="inline">relay_h2d/d2h_thread_stack</code></td>
+            <td>nus_relay.c</td>
+            <td>릴레이 스레드 스택 (방향별 1개)</td>
+            <td><span class="badge badge-pending">적정</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.0 KB</strong></td>
+            <td><code class="inline">z_main_stack</code></td>
+            <td>Zephyr Kernel</td>
+            <td>메인 스레드 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.0 KB</strong></td>
+            <td><code class="inline">s_resp_buf</code></td>
+            <td>at_cmd.c</td>
+            <td>AT 응답 버퍼 (AT_CMD_RESP_BUF_SIZE=1024)</td>
+            <td><span class="badge badge-urgent">축소 가능</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.0 KB</strong></td>
+            <td><code class="inline">mpsl_work_stack</code></td>
+            <td>MPSL (RF)</td>
+            <td>MPSL RF 스케줄러 워크큐 스택</td>
+            <td><span class="badge badge-review">SDK 관리</span></td>
+          </tr>
+          <tr>
+            <td><strong>1.0 KB</strong></td>
+            <td><code class="inline">kheap__system_heap</code></td>
+            <td>Zephyr Kernel</td>
+            <td>시스템 힙 (CONFIG_HEAP_MEM_POOL_SIZE=2048, LittleFS 힙 포함)</td>
+            <td><span class="badge badge-pending">적정</span></td>
+          </tr>
+          <tr>
+            <td><strong>0.7 KB</strong></td>
+            <td><code class="inline">s_slots</code></td>
+            <td>conn_slot.c</td>
+            <td>통합 연결 슬롯 풀 (conn_slot[8])</td>
+            <td><span class="badge badge-done">고정</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>최적화 후보 요약</h3>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>현재값</th><th>제안값</th><th>예상 절감</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">NUS_RELAY_QUEUE_SIZE</code></td>
+            <td>32</td>
+            <td>8</td>
+            <td><strong>~11.8 KB</strong></td>
+            <td>nus_relay.c — BLE 연결 간격(7.5~15ms) 기준 8슬롯이면 버스트 흡수 충분</td>
+          </tr>
+          <tr>
+            <td><code class="inline">AT_CMD_RESP_BUF_SIZE</code></td>
+            <td>1024</td>
+            <td>512</td>
+            <td><strong>~0.5 KB</strong></td>
+            <td>at_cmd.c — AT+HELP 응답이 최대 사용자이며 512B 이내</td>
+          </tr>
+          <tr>
+            <td><code class="inline">CONFIG_LOG_BUFFER_SIZE</code></td>
+            <td>2048</td>
+            <td>1024</td>
+            <td><strong>~1.0 KB</strong></td>
+            <td>prj.conf — 로그 출력 빈도가 낮으면 축소 가능</td>
+          </tr>
+          <tr style="font-weight:700;">
+            <td colspan="3">합계</td>
+            <td><strong>~13.3 KB</strong></td>
+            <td>적용 시 사용률 약 57.8%로 감소</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <strong>SDK 관리 항목:</strong> <code class="inline">sdc_mempool</code>, <code class="inline">bt_smp_pool</code>, <code class="inline">acl_conns</code> 등은
+      <code class="inline">CONFIG_BT_MAX_CONN</code> 값에 비례하여 증가합니다.
+      현재 MAX_CONN=8 (ONE-firmware 상한)이며, 제품별로 실제 연결 수는 <code class="inline">AT+MLINK</code>로 제어하므로
+      MAX_CONN 자체를 줄이면 RAM을 크게 절약할 수 있으나, ONE-firmware 정책과 상충됩니다.
+    </div>
+
+    <div class="callout callout-info">
+      <strong>분석 도구:</strong> <code class="inline">arm-zephyr-eabi-nm --size-sort -r -S zephyr.elf | grep " [bBdD] "</code> 명령으로
+      빌드된 ELF 파일에서 RAM 심볼을 크기순으로 추출할 수 있습니다.
+      런타임 스택 사용량은 <code class="inline">CONFIG_THREAD_ANALYZER=y</code> + <code class="inline">CONFIG_THREAD_ANALYZER_AUTO=y</code>로 실측 가능합니다.
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════════════════════════ SCRIPTS ════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>
+  // ── Theme Toggle ──
+  let isDark = false;
+  function toggleTheme() {
+    isDark = !isDark;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.getElementById('theme-toggle').textContent = isDark ? '☀️ 라이트 모드' : '🌙 다크 모드';
+  }
+
+  // ── Active nav link on scroll ──
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('#sidebar nav a');
+
+  function updateActiveLink() {
+    let current = '';
+    sections.forEach(sec => {
+      const rect = sec.getBoundingClientRect();
+      if (rect.top <= 80) current = sec.id;
+    });
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+    });
+  }
+
+  document.getElementById('content').addEventListener('scroll', updateActiveLink);
+  window.addEventListener('scroll', updateActiveLink);
+</script>
+</body>
+</html>
